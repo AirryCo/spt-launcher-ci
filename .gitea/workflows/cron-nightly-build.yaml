@@ -48,7 +48,7 @@ jobs:
           modules_latest_commit=${MODULES_LATEST_COMMIT_HASH:0:7}
           echo "🤖 modules_last_commit = $modules_last_commit"
           echo "👽 MODULES_LATEST_COMMIT_HASH = $MODULES_LATEST_COMMIT_HASH"
-          echo "MODULES_LAST_BUILT_HASH=$MODULES_LAST_BUILT_HASH" >> $GITHUB_OUTPUT
+          echo "MODULES_LAST_BUILT_HASH=$modules" >> $GITHUB_OUTPUT
 
           if [ "$modules_last_commit" = "$modules_latest_commit" ]; then
             LAUNCHER_LATEST_COMMIT_HASH=$(git ls-remote ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_LAUNCHER }} | awk '{print $1}')
@@ -56,7 +56,7 @@ jobs:
             launcher_latest_commit="${LAUNCHER_LATEST_COMMIT_HASH:0:7}"
             echo "🤖 launcher_last_commit = $launcher_last_commit"
             echo "👽 LAUNCHER_LATEST_COMMIT_HASH = $LAUNCHER_LATEST_COMMIT_HASH"
-            echo "LAUNCHER_LAST_BUILT_HASH=$LAUNCHER_LAST_BUILT_HASH" >> $GITHUB_OUTPUT
+            echo "LAUNCHER_LAST_BUILT_HASH=$launcher" >> $GITHUB_OUTPUT
 
             if [ "$launcher_last_commit" != "$launcher_latest_commit" ]; then
               echo "✅ There is different between built-commit and latest-commit, continue to build."
@@ -247,7 +247,7 @@ jobs:
           echo "modules=$modules" > trigger.nightly
           echo "launcher=$launcher" >> trigger.nightly
           git add .
-          git commit -m "up to modules:$modules, launcher:$launcher."
+          git commit -m "🤖 up to modules\`$modules\`, launcher:\`$launcher\`."
           git push
 
   assemble-and-publish:
@@ -320,17 +320,27 @@ jobs:
       - name: Create Pre-release
         uses: akkuman/gitea-release-action@v1
         with:
-          name: ${{ steps.generate-filename.outputs.release_name }}
+          name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           token: ${{ gitea.token }}
           sha256sum: true
           prerelease: true
           body: |
+            ${{ steps.generate-filename.outputs.release_name }}
+
+            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+            Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
+
+            docker support(linux/amd64 only):
+            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
+
             Full Changelog:
 
             - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
 
-            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.LAUNCHER_LATEST_BUILT_HASH000000 }})
+            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
 
           files: |-
             ${{ steps.generate-filename.outputs.release_file }}

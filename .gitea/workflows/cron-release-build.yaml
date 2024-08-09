@@ -312,6 +312,13 @@ jobs:
           body: |
             ${{ needs.prepare.outputs.TARGET_TAG }} is pre-released! 🐞
 
+            SPT: ***${{ needs.prepare.outputs.TRIGGER_VERSION }}***
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            docker support (linux/amd64 only):
+            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:${{ needs.prepare.outputs.TRIGGER_VERSION }}`
+
             Full Changelog: 
 
             - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
@@ -333,6 +340,13 @@ jobs:
           sha256sum: true
           body: |
             ${{ needs.prepare.outputs.TARGET_TAG }} is released! 🥳
+
+            SPT: ***${{ needs.prepare.outputs.TRIGGER_VERSION }}***
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            docker support (linux/amd64 only):
+            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:${{ needs.prepare.outputs.TRIGGER_VERSION }}`
 
             Full Changelog:
 
