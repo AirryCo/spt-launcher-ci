@@ -121,7 +121,7 @@ jobs:
           fi
           cd /escapefromtarkov
           if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
-            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ env.MANAGED_VERSION }}.tar
+            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ ${{ needs.prepare.outputs.EFT_VERSION }} }}.tar
           fi
           tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspcae }}/${{ env.repository_modules }}/project/Shared/
       - name: Cache Modules Build
