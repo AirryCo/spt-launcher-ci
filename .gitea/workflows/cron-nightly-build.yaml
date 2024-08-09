@@ -130,7 +130,7 @@ jobs:
           if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
             wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar
           fi
-          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspcae }}/${{ env.REPOSITORY_MODULES }}/project/Shared/
+          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspace }}/${{ env.REPOSITORY_MODULES }}/project/Shared/
       - name: Cache Modules Build
         uses: actions/cache@v4
         id: cache-modules-build
