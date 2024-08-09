@@ -2,25 +2,25 @@ name: SPT Release CI
 
 on:
   schedule:
-    - cron: "30 0-23/3 * * *"
+    - cron: "20 1-23/3 * * *"
   push:
     paths:
       - '.gitea/workflows/cron-release-build.yaml'
 
 env:
-  gitea_url: dev.sp-tarkov.com
-  build_image: medusa/spt-build
-  repository_url:  https://${{ env.gitea_url }}
-  repository_owner: SPT
-  repository_modules: spt-modules
-  repository_launcher: spt-launcher
-  repository_server: spt-server
+  SERVER_DOMAIN: dev.sp-tarkov.com
+  BUILD_IMAGE: medusa/spt-build
+  REPOSITORY_OWNER: SPT
+  REPOSITORY_MODULES: Modules
+  REPOSITORY_LAUNCHER: Launcher
+  REPOSITORY_SERVER: medusa/spt-server
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
       PROCEED: ${{ steps.get-target-tag.outputs.PROCEED }}
+
       TARGET_TAG: ${{ steps.get-target-tag.outputs.TARGET_TAG }}
       TRIGGER_VERSION: ${{ steps.get-target-tag.outputs.TRIGGER_VERSION }}
       SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
@@ -42,24 +42,24 @@ jobs:
           echo "👽 TRIGGER_VERSION = $TRIGGER_VERSION"
           echo "TRIGGER_VERSION=$TRIGGER_VERSION" >> $GITHUB_OUTPUT
 
-          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}.git
-          cd ${{ env.repository_modules }}
+          git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          cd ${{ env.REPOSITORY_MODULES }}
           TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
           echo "👽 TARGET_TAG_MODULES = $TARGET_TAG"
 
           if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ]; then
             echo "✅ Tags are different, continue to build."
-            echo "PROCEED=true" >> $GITHUB_OUTPUT
             echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
+            echo "PROCEED=true" >> $GITHUB_OUTPUT
           else
-            git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}.git
-            cd ${{ env.repository_launcher }}
+            git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+            cd ${{ env.REPOSITORY_LAUNCHER }}
             TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
             echo "👽 TARGET_TAG_LAUNCHER = $TARGET_TAG"
             if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ]; then
               echo "✅ Tags are different, continue to build."
-              echo "PROCEED=true" >> $GITHUB_OUTPUT
               echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
+              echo "PROCEED=true" >> $GITHUB_OUTPUT
             else
               echo "✋ All tags are the same, stop building."
               echo "PROCEED=false" >> $GITHUB_OUTPUT
@@ -69,10 +69,10 @@ jobs:
         id: versions
         if: steps.get-target-tag.outputs.PROCEED == 'true'
         run: |
-          SERVER_COMMIT=$(git ls-remote ${{ env.repository_url }}/henry/${{ env.repository_server }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
+          SERVER_COMMIT=$(git ls-remote ${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget ${{ env.repository_url }}/henry/${{ env.repository_server }}/raw/tag/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
+          wget ${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/raw/tag/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
           SPT_VERSION=$(jq -r '.sptVersion' core.json)
           EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 
@@ -88,7 +88,7 @@ jobs:
     if: needs.prepare.outputs.PROCEED == 'true'
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.gitea_url }}/${{ env.build_image }}:dotnet
+      image: ${{ env.SERVER_DOMAIN }}/${{ env.BUILD_IMAGE }}:dotnet
       volumes:
         - act-toolcache:/opt/hostedtoolcache
         - escapefromtarkov:/escapefromtarkov
@@ -100,6 +100,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: 'true'
+          fetch-depth: 0
       - name: Setup Dotnet
         uses: actions/setup-dotnet@v4
         with:
@@ -108,8 +109,8 @@ jobs:
         id: clone-modules
         run: |
           git pull
-          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}.git
-          cd ${{ env.repository_modules }}
+          git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          cd ${{ env.REPOSITORY_MODULES }}
           git checkout ${{ needs.prepare.outputs.TARGET_TAG }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
@@ -123,18 +124,19 @@ jobs:
           if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
             wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ ${{ needs.prepare.outputs.EFT_VERSION }} }}.tar
           fi
-          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspcae }}/${{ env.repository_modules }}/project/Shared/
+          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspcae }}/${{ env.REPOSITORY_MODULES }}/project/Shared/
       - name: Cache Modules Build
         uses: actions/cache@v4
         id: cache-modules-build
         with:
           path: |
-            ${{ env.repository_modules }}/project/Build
+            ${{ env.REPOSITORY_MODULES }}/project/Build
           key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
       - name: Build Modules
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
-          cd ${{ env.repository_modules }}/project
+          cd ${{ env.REPOSITORY_MODULES }}/project
+          dotnet restore
           dotnet build -c Release -p:Version=${{ needs.prepare.outputs.SPT_VERSION }}
           printf "\n👽 Built!\n\n"
           tree Build
@@ -143,7 +145,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: modules-artifact
-          path: ${{ env.repository_modules }}/project/Build
+          path: ${{ env.REPOSITORY_MODULES }}/project/Build
           compression-level: 0
           retention-days: 1
           overwrite: true
@@ -151,6 +153,7 @@ jobs:
       - name: Generate status
         id: status
         run: |
+          echo "JOB_STATUS = ok"
           echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
 
   build-launcher:
@@ -158,7 +161,7 @@ jobs:
     if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.gitea_url }}/${{ env.build_image }}:dotnet
+      image: ${{ env.SERVER_DOMAIN }}/${{ env.BUILD_IMAGE }}:dotnet
       volumes:
         - act-toolcache:/opt/hostedtoolcache
     outputs:
@@ -177,8 +180,8 @@ jobs:
         id: clone-launcher
         run: |
           git pull
-          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}.git
-          cd ${{ env.repository_launcher }}
+          git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+          cd ${{ env.REPOSITORY_LAUNCHER }}
           git checkout ${{ needs.prepare.outputs.TARGET_TAG }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
@@ -188,12 +191,12 @@ jobs:
         id: cache-launcher-build
         with:
           path: |
-            ${{ env.repository_launcher }}/project/Build
+            ${{ env.REPOSITORY_LAUNCHER }}/project/Build
           key: launcher-build-${{ steps.clone-launcher.outputs.COMMIT_ID }}
       - name: Build Launcher
         if: steps.cache-launcher-build.outputs.cache-hit != 'true'
         run: |
-          cd ${{ env.repository_launcher }}/project
+          cd ${{ env.REPOSITORY_LAUNCHER }}/project
           dotnet build
           printf "\n👽 Built!\n\n"
           tree Build
@@ -202,7 +205,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: launcher-artifact
-          path: ${{ env.repository_launcher }}/project/Build
+          path: ${{ env.REPOSITORY_LAUNCHER }}/project/Build
           compression-level: 0
           retention-days: 1
           overwrite: true
@@ -210,6 +213,7 @@ jobs:
       - name: Generate status
         id: status
         run: |
+          echo "JOB_STATUS = ok"
           echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
 
   update-trigger-and-push:
@@ -221,14 +225,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: 'true'
+          fetch-depth: 0
       - name: Update And Push
         run: |
-          git pull
-          echo "${{ needs.prepare.outputs.TARGET_TAG }}" > trigger
           git config user.name "gitea-actions[bot]"
           git config user.email "bot@stblog.com.cn"
+          git pull
+          rm trigger
+          echo "${{ needs.prepare.outputs.TARGET_TAG }}" > trigger
           git add .
-          git commit -m "bump to ${{ needs.prepare.outputs.TARGET_TAG }}"
+          git commit -m "🤖 bump to ${{ needs.prepare.outputs.TARGET_TAG }}"
           git push
           git tag ${{ needs.prepare.outputs.TARGET_TAG }}
           git push --tags
@@ -241,6 +247,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: 'true'
+          fetch-depth: 0
 
       - name: Clean Directory
         run: |
@@ -307,9 +314,9 @@ jobs:
 
             Full Changelog: 
 
-            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
 
-            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
 
           files: |-
             ${{ steps.generate-filename.outputs.release_file }}
@@ -329,9 +336,9 @@ jobs:
 
             Full Changelog:
 
-            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
 
-            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
           files: |-
             ${{ steps.generate-filename.outputs.release_file }}
 
