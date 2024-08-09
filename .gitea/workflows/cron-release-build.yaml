@@ -1,0 +1,337 @@
+name: SPT Release CI
+
+on:
+  schedule:
+    - cron: "30 0-23/3 * * *"
+  push:
+    paths:
+      - '.gitea/workflows/cron-release-build.yaml'
+
+env:
+  gitea_url: dev.sp-tarkov.com
+  build_image: medusa/spt-build
+  repository_url:  https://${{ env.gitea_url }}
+  repository_owner: SPT
+  repository_modules: spt-modules
+  repository_launcher: spt-launcher
+  repository_server: spt-server
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      PROCEED: ${{ steps.get-target-tag.outputs.PROCEED }}
+      TARGET_TAG: ${{ steps.get-target-tag.outputs.TARGET_TAG }}
+      TRIGGER_VERSION: ${{ steps.get-target-tag.outputs.TRIGGER_VERSION }}
+      SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
+      EFT_VERSION: ${{ steps.versions.outputs.EFT_VERSION }}
+      SERVER_COMMIT: ${{ steps.versions.outputs.SERVER_COMMIT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 0
+      - name: Get target tag
+        id: get-target-tag
+        run: |
+          git pull
+
+          TRIGGER_VERSION=$(cat trigger)
+          echo "👽 TRIGGER_VERSION = $TRIGGER_VERSION"
+          echo "TRIGGER_VERSION=$TRIGGER_VERSION" >> $GITHUB_OUTPUT
+
+          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}.git
+          cd ${{ env.repository_modules }}
+          TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
+          echo "👽 TARGET_TAG_MODULES = $TARGET_TAG"
+
+          if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ]; then
+            echo "✅ Tags are different, continue to build."
+            echo "PROCEED=true" >> $GITHUB_OUTPUT
+            echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
+          else
+            git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}.git
+            cd ${{ env.repository_launcher }}
+            TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
+            echo "👽 TARGET_TAG_LAUNCHER = $TARGET_TAG"
+            if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ]; then
+              echo "✅ Tags are different, continue to build."
+              echo "PROCEED=true" >> $GITHUB_OUTPUT
+              echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
+            else
+              echo "✋ All tags are the same, stop building."
+              echo "PROCEED=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+      - name: Extract versions
+        id: versions
+        if: steps.get-target-tag.outputs.PROCEED == 'true'
+        run: |
+          SERVER_COMMIT=$(git ls-remote ${{ env.repository_url }}/henry/${{ env.repository_server }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
+
+          # Extract versions from core.json
+          wget ${{ env.repository_url }}/henry/${{ env.repository_server }}/raw/tag/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
+          SPT_VERSION=$(jq -r '.sptVersion' core.json)
+          EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
+
+          echo "👽 SPT_VERSION = $SPT_VERSION"
+          echo "👽 EFT_VERSION = $EFT_VERSION"
+          echo "👽 SERVER_COMMIT = $SERVER_COMMIT"
+          echo "SPT_VERSION=$SPT_VERSION" >> $GITHUB_OUTPUT
+          echo "EFT_VERSION=$EFT_VERSION" >> $GITHUB_OUTPUT
+          echo "SERVER_COMMIT=$SERVER_COMMIT" >> $GITHUB_OUTPUT
+
+  build-modules:
+    needs: prepare
+    if: needs.prepare.outputs.PROCEED == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ env.gitea_url }}/${{ env.build_image }}:dotnet
+      volumes:
+        - act-toolcache:/opt/hostedtoolcache
+        - escapefromtarkov:/escapefromtarkov
+    outputs:
+      JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+      - name: Setup Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Clone Modules
+        id: clone-modules
+        run: |
+          git pull
+          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}.git
+          cd ${{ env.repository_modules }}
+          git checkout ${{ needs.prepare.outputs.TARGET_TAG }}
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "👽 COMMIT_ID = $COMMIT_ID"
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Decompress Client Module Package
+        run: |
+          if [ ! -d /escapefromtarkov ]; then
+            mkdir -p /escapefromtarkov
+          fi
+          cd /escapefromtarkov
+          if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
+            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ env.MANAGED_VERSION }}.tar
+          fi
+          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspcae }}/${{ env.repository_modules }}/project/Shared/
+      - name: Cache Modules Build
+        uses: actions/cache@v4
+        id: cache-modules-build
+        with:
+          path: |
+            ${{ env.repository_modules }}/project/Build
+          key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
+      - name: Build Modules
+        if: steps.cache-modules-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.repository_modules }}/project
+          dotnet build -c Release -p:Version=${{ needs.prepare.outputs.SPT_VERSION }}
+          printf "\n👽 Built!\n\n"
+          tree Build
+
+      - name: Artifact Modules
+        uses: actions/upload-artifact@v3
+        with:
+          name: modules-artifact
+          path: ${{ env.repository_modules }}/project/Build
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
+
+      - name: Generate status
+        id: status
+        run: |
+          echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
+
+  build-launcher:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ env.gitea_url }}/${{ env.build_image }}:dotnet
+      volumes:
+        - act-toolcache:/opt/hostedtoolcache
+    outputs:
+      JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+      - name: Setup Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Clone Launcher
+        id: clone-launcher
+        run: |
+          git pull
+          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}.git
+          cd ${{ env.repository_launcher }}
+          git checkout ${{ needs.prepare.outputs.TARGET_TAG }}
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "👽 COMMIT_ID = $COMMIT_ID"
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Cache Launcher Build
+        uses: actions/cache@v4
+        id: cache-launcher-build
+        with:
+          path: |
+            ${{ env.repository_launcher }}/project/Build
+          key: launcher-build-${{ steps.clone-launcher.outputs.COMMIT_ID }}
+      - name: Build Launcher
+        if: steps.cache-launcher-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.repository_launcher }}/project
+          dotnet build
+          printf "\n👽 Built!\n\n"
+          tree Build
+
+      - name: Artifact Launcher
+        uses: actions/upload-artifact@v3
+        with:
+          name: launcher-artifact
+          path: ${{ env.repository_launcher }}/project/Build
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
+
+      - name: Generate status
+        id: status
+        run: |
+          echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
+
+  update-trigger-and-push:
+    needs: [prepare, build-modules, build-launcher]
+    runs-on: ubuntu-latest
+    if: needs.build-modules.outputs.JOB_STATUS == 'ok' && needs.build-launcher.outputs.JOB_STATUS == 'ok'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+      - name: Update And Push
+        run: |
+          git pull
+          echo "${{ needs.prepare.outputs.TARGET_TAG }}" > trigger
+          git config user.name "gitea-actions[bot]"
+          git config user.email "bot@stblog.com.cn"
+          git add .
+          git commit -m "bump to ${{ needs.prepare.outputs.TARGET_TAG }}"
+          git push
+          git tag ${{ needs.prepare.outputs.TARGET_TAG }}
+          git push --tags
+
+  assemble-and-publish:
+    needs: [prepare, build-modules, build-launcher]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Build Project
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+
+      - name: Clean Directory
+        run: |
+          rm -rf release build
+          mkdir -p release
+        shell: bash
+
+      - name: Download Modules Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: modules-artifact
+          path: release/
+
+      - name: Download Launcher Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: launcher-artifact
+          path: release/
+
+      - name: Merge Static Assets and Dynamic Files
+        run: cp -rvf static-assets/* release/
+        shell: bash
+
+      - name: List Release Contents
+        run: |
+          apt-get update && apt-get install -y -qq tree
+          tree release
+        shell: bash
+
+      - name: Generate Release Filename
+        id: generate-filename
+        run: |
+          SPT_VERSION=${{ needs.prepare.outputs.SPT_VERSION }}
+          EFT_VERSION=${{ needs.prepare.outputs.EFT_VERSION }}
+          SERVER_COMMIT=${{ needs.prepare.outputs.SERVER_COMMIT }}
+          TARGET_TAG=${{ needs.prepare.outputs.TARGET_TAG }}
+          DATE=$(date +%Y%m%d)
+          BASE_NAME="SPT${SPT_VERSION}-Release-EFT${EFT_VERSION}-${SERVER_COMMIT}-DATE"
+
+          echo "release_file=$BASE_NAME.tgz" >> $GITHUB_OUTPUT
+
+        shell: bash
+
+      - name: Compress Release
+        id: compress-release
+        run: |
+          tar --transform='s|^release/||' -cvzf ${{ steps.generate-filename.outputs.release_file }} release/
+          echo "Release compressed as ${{ steps.generate-filename.outputs.release_file }}."
+          ls -lh
+        shell: bash
+
+      # 测试版-预发型
+      - name: Create Pre-release
+        if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        uses: akkuman/gitea-release-action@v1
+        with:
+          name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          token: ${{ gitea.token }}
+          sha256sum: true
+          prerelease: true
+          body: |
+            ${{ needs.prepare.outputs.TARGET_TAG }} is pre-released! 🐞
+
+            Full Changelog: 
+
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+          files: |-
+            ${{ steps.generate-filename.outputs.release_file }}
+
+      # 正式版-正式发型
+      - name: Create Release
+        id: create_release
+        if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        uses: akkuman/gitea-release-action@v1
+        with:
+          name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          token: ${{ gitea.token }}
+          sha256sum: true
+          body: |
+            ${{ needs.prepare.outputs.TARGET_TAG }} is released! 🥳
+
+            Full Changelog:
+
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+          files: |-
+            ${{ steps.generate-filename.outputs.release_file }}
+

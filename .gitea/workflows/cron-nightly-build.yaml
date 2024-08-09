@@ -1,0 +1,340 @@
+name: SPT Nightly CI
+
+on:
+  schedule:
+    - cron: "10 0-23/3 * * *"
+  push:
+    paths:
+      - '.gitea/workflows/cron-nightly-build.yaml'
+
+env:
+  nightly_branch_modules: 310-dev
+  nightly_branch_launcher: 3.10.0-DEV
+  nightly_branch_server: 3.10.0-DEV
+
+  gitea_address: dev.sp-tarkov.com
+  build_image: medusa/spt-build
+  repository_url:  https://${{ env.gitea_address }}
+  repository_owner: SPT
+  repository_modules: spt-modules
+  repository_launcher: spt-launcher
+  repository_server: spt-server
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      PROCEED: ${{ steps.get-latest-commit.outputs.PROCEED }}
+      MODULES_LAST_BUILT_COMMIT_HASH: ${{ steps.get-latest-commit.outputs.MODULES_LAST_BUILT_COMMIT_HASH }}
+      LAUNCHER_LAST_BUILT_COMMIT_HASH: ${{ steps.get-latest-commit.outputs.LAUNCHER_LAST_BUILT_COMMIT_HASH }}
+      
+      SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
+      EFT_VERSION: ${{ steps.versions.outputs.EFT_VERSION }}
+      SERVER_COMMIT: ${{ steps.versions.outputs.SERVER_COMMIT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 0
+      - name: Get Latest Commit From SPT
+        id: get-latest-commit
+        run: |
+          git pull
+          source trigger.nightly
+
+          MODULES_LAST_BUILT_COMMIT_HASH=$modules
+          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}.git
+          cd ${{ env.repository_modules }}
+          git checkout ${{ env.nightly_branch_modules }}
+          MODULES_LATEST_COMMIT_HASH=$(git rev-parse --short HEAD)
+          echo "🤖 MODULES_LAST_BUILT_COMMIT_HASH = $MODULES_LAST_BUILT_COMMIT_HASH"
+          echo "👽 MODULES_LATEST_COMMIT_HASH = $MODULES_LATEST_COMMIT_HASH"
+          echo "MODULES_LAST_BUILT_COMMIT_HASH=$MODULES_LAST_BUILT_COMMIT_HASH" >> $GITHUB_OUTPUT
+
+          if [ "$MODULES_LAST_BUILT_COMMIT_HASH" = "$MODULES_LATEST_COMMIT_HASH" ]; then
+            cd ${{ gitea.workspace }}
+            LAUNCHER_LAST_BUILT_COMMIT_HASH=$launcher
+            git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}.git
+            cd ${{ env.repository_launcher }}
+            git checkout ${{ env.nightly_branch_launcher }}
+            LAUNCHER_LATEST_COMMIT_HASH=$(git rev-parse --short HEAD)
+            echo "🤖 LAUNCHER_LAST_BUILT_COMMIT_HASH = $LAUNCHER_LAST_BUILT_COMMIT_HASH"
+            echo "👽 LAUNCHER_LATEST_COMMIT_HASH = $LAUNCHER_LATEST_COMMIT_HASH"
+            echo "LAUNCHER_LAST_BUILT_COMMIT_HASH=$LAUNCHER_LAST_BUILT_COMMIT_HASH" >> $GITHUB_OUTPUT
+
+            if [ "$LAUNCHER_LAST_BUILT_COMMIT_HASH" != "$LAUNCHER_LATEST_COMMIT_HASH" ]; then
+              echo "✅ There is different between built-commit and latest-commit, continue to build."
+              echo "PROCEED=true" >> $GITHUB_OUTPUT
+            else
+              echo "✋ There is no different between built-commit and latest-commit, stop building."
+              echo "PROCEED=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "✅ There is different between built-commit and latest-commit, continue to build."                                 echo "PROCEED=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract versions
+        id: versions
+        if: steps.get-latest-commit.outputs.PROCEED == 'true'
+        run: |
+          SERVER_COMMIT=$(git ls-remote ${{ env.repository_url }}/medusa/${{ env.repository_server }}.git refs/heads/${{ env.nightly_branch_server }} | awk '{print $1}' | cut -c1-8)
+
+          # Extract versions from core.json
+          wget ${{ env.repository_url }}/medusa/${{ env.repository_server }}/raw/branch/${{ env.nightly_branch_server }}/project/assets/configs/core.json
+          SPT_VERSION=$(jq -r '.sptVersion' core.json)
+          EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
+
+          echo "👽 SPT_VERSION = $SPT_VERSION"
+          echo "👽 EFT_VERSION = $EFT_VERSION"
+          echo "👽 SERVER_COMMIT = $SERVER_COMMIT"
+          echo "SPT_VERSION=$SPT_VERSION" >> $GITHUB_OUTPUT
+          echo "EFT_VERSION=$EFT_VERSION" >> $GITHUB_OUTPUT
+          echo "SERVER_COMMIT=$SERVER_COMMIT" >> $GITHUB_OUTPUT
+
+  build-modules:
+    needs: prepare
+    if: needs.prepare.outputs.PROCEED == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ env.gitea_address }}/${{ env.build_image }}:dotnet
+      volumes:
+        - act-toolcache:/opt/hostedtoolcache
+        - escapefromtarkov:/escapefromtarkov
+    outputs:
+      JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+      MODULES_LATEST_BUILT_COMMIT_HASH: ${{ steps.status.outputs.MODULES_LATEST_BUILT_COMMIT_HASH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 0
+      - name: Setup Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Clone Modules
+        id: clone-modules
+        run: |
+          git pull
+          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}.git
+          cd ${{ env.repository_modules }}
+          git checkout ${{ env.nightly_branch_modules }}
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "👽 COMMIT_ID = $COMMIT_ID"
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Decompress Client Module Package
+        run: |
+          if [ ! -d /escapefromtarkov ]; then
+            mkdir -p /escapefromtarkov
+          fi
+          cd /escapefromtarkov
+          if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
+            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ env.MANAGED_VERSION }}.tar
+          fi
+          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspcae }}/${{ env.repository_modules }}/project/Shared/
+      - name: Cache Modules Build
+        uses: actions/cache@v4
+        id: cache-modules-build
+        with:
+          path: |
+            ${{ env.repository_modules }}/project/Build
+          key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
+      - name: Build Modules
+        if: steps.cache-modules-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.repository_modules }}/project
+          dotnet build -c Release -p:Version=${{ needs.prepare.outputs.SPT_VERSION }}
+          printf "\n👽 Built!\n\n"
+          tree Build
+
+      - name: Artifact Modules
+        uses: actions/upload-artifact@v3
+        with:
+          name: modules-artifact
+          path: ${{ env.repository_modules }}/project/Build
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
+
+      - name: Generate status
+        id: status
+        run: |
+          echo "JOB_STATUS = ok"
+          echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
+          echo "MODULES_LATEST_BUILT_COMMIT_HASH=${{ steps.clone-modules.outputs.COMMIT_ID }}" >> $GITHUB_OUTPUT
+
+  build-launcher:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ env.gitea_address }}/${{ env.build_image }}:dotnet
+      volumes:
+        - act-toolcache:/opt/hostedtoolcache
+    outputs:
+      JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+      LAUNCHER_LATEST_BUILT_COMMIT_HASH: ${{ steps.status.outputs.LAUNCHER_LATEST_BUILT_COMMIT_HASH }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 0
+      - name: Setup Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Clone Launcher
+        id: clone-launcher
+        run: |
+          git pull
+          git clone ${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}.git
+          cd ${{ env.repository_launcher }}
+          git checkout ${{ env.nightly_branch_launcher }}
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "👽 COMMIT_ID = $COMMIT_ID"
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Cache Launcher Build
+        uses: actions/cache@v4
+        id: cache-launcher-build
+        with:
+          path: |
+            ${{ env.repository_launcher }}/project/Build
+          key: launcher-build-${{ steps.clone-launcher.outputs.COMMIT_ID }}
+      - name: Build Launcher
+        if: steps.cache-launcher-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.repository_launcher }}/project
+          dotnet build
+          printf "\n👽 Built!\n\n"
+          tree Build
+
+      - name: Artifact Launcher
+        uses: actions/upload-artifact@v3
+        with:
+          name: launcher-artifact
+          path: ${{ env.repository_launcher }}/project/Build
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
+
+      - name: Generate status
+        id: status
+        run: |
+          echo "JOB_STATUS = ok"
+          echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
+          echo "LAUNCHER_LATEST_BUILT_COMMIT_HASH=${{ steps.clone-launcher.outputs.COMMIT_ID }}" >> $GITHUB_OUTPUT
+
+  update-trigger-and-push:
+    needs: [prepare, build-modules, build-launcher]
+    runs-on: ubuntu-latest
+    if: needs.build-modules.outputs.JOB_STATUS == 'ok' && needs.build-launcher.outputs.JOB_STATUS == 'ok'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 0
+      - name: Update And Push
+        run: |
+          git config user.name "gitea-actions[bot]"
+          git config user.email "bot@rui.he.cn"
+          git pull
+          rm trigger.nightly
+          modules=${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_COMMIT_HASH }}
+          launcher=${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_COMMIT_HASH }}
+          echo "modules=$modules" > trigger.nightly
+          echo "launcher=$launcher" >> trigger.nightly
+          git add .
+          git commit -m "up to modules:$modules, launcher:$launcher."
+          git push
+
+  assemble-and-publish:
+    needs: [prepare, build-modules, build-launcher]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Build Project
+        uses: actions/checkout@v4
+        with:
+          lfs: 'true'
+          fetch-depth: 0
+
+      - name: Clean Directory
+        run: |
+          rm -rf release build
+          mkdir -p release
+        shell: bash
+
+      - name: Download Modules Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: modules-artifact
+          path: release/
+
+      - name: Download Launcher Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: launcher-artifact
+          path: release/
+
+      - name: Merge Static Assets and Dynamic Files
+        run: cp -rvf static-assets/* release/
+        shell: bash
+
+      - name: List Release Contents
+        run: |
+          apt-get update && apt-get install -y -qq tree
+          tree release
+        shell: bash
+
+      - name: Generate Release Filename
+        id: generate-filename
+        run: |
+          SPT_VERSION=${{ needs.prepare.outputs.SPT_VERSION }}
+          EFT_VERSION=${{ needs.prepare.outputs.EFT_VERSION }}
+          SERVER_COMMIT=${{ needs.prepare.outputs.SERVER_COMMIT }}
+          DATE_TIME=$(date +%Y%m%d%H%M%S)
+          release_name="SPT${SPT_VERSION}-Nightly-EFT${EFT_VERSION}-${SERVER_COMMIT}-${DATE_TIME}"
+          echo "DATE_TIME=$DATE_TIME" >> $GITHUB_OUTPUT
+          echo "release_file=$release_name.tgz" >> $GITHUB_OUTPUT
+          echo "release_name=$release_name" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Artifact Release
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.generate-filename.outputs.release_name }}
+          path: release
+          retention-days: 1
+          overwrite: true
+
+      - name: Compress Release
+        id: compress-release
+        run: |
+          tar --transform='s|^release/||' -cvzf ${{ steps.generate-filename.outputs.release_file }} release/
+          echo "Release compressed as ${{ steps.generate-filename.outputs.release_file }}."
+          ls -lh
+        shell: bash
+
+      - name: Create Pre-release
+        uses: akkuman/gitea-release-action@v1
+        with:
+          name: ${{ steps.generate-filename.outputs.release_name }}
+          tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
+          token: ${{ gitea.token }}
+          sha256sum: true
+          prerelease: true
+          body: |
+            Full Changelog:
+
+            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_COMMIT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_COMMIT_HASH }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_modules }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_COMMIT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_COMMIT_HASH }})
+
+            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_COMMIT_HASH }}....${{ needs.build-modules.outputs.LAUNCHER_LATEST_BUILT_COMMIT_HASH }}](${{ env.repository_url }}/${{ env.repository_owner }}/${{ env.repository_launcher }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_COMMIT_HASH }}...${{ needs.build-modules.outputs.LAUNCHER_LATEST_BUILT_COMMIT_HASH000000 }})
+
+          files: |-
+            ${{ steps.generate-filename.outputs.release_file }}
