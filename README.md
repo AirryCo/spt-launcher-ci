@@ -13,7 +13,11 @@ Note: The `spt-server` is compiled only for Linux and does not support Windows. 
 https://dev.sp-tarkov.com/medusa/-/packages/container/spt-server/latest
 
 ```bash
+# Stable version
 docker pull dev.sp-tarkov.com/medusa/spt-server:latest
+
+# nightly/development version
+docker pull dev.sp-tarkov.com/medusa/spt-server:nightly
 ```
 
 ---
@@ -31,6 +35,10 @@ docker pull dev.sp-tarkov.com/medusa/spt-server:latest
 https://dev.sp-tarkov.com/medusa/-/packages/container/spt-server/latest
 
 ```bash
+# 稳定版
 docker pull dev.sp-tarkov.com/medusa/spt-server:latest
+
+# 每夜版/开发板
+docker pull dev.sp-tarkov.com/medusa/spt-server:nightly
 ```
 
