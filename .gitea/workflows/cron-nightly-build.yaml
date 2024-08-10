@@ -295,10 +295,11 @@ jobs:
           EFT_VERSION=${{ needs.prepare.outputs.EFT_VERSION }}
           SERVER_COMMIT=${{ needs.prepare.outputs.SERVER_COMMIT }}
           DATE_TIME=$(date +%Y%m%d%H%M%S)
+
           release_name="SPT${SPT_VERSION}-Nightly-EFT${EFT_VERSION}-${SERVER_COMMIT}-${DATE_TIME}"
           echo "DATE_TIME=$DATE_TIME" >> $GITHUB_OUTPUT
-          echo "release_file=$release_name.tgz" >> $GITHUB_OUTPUT
           echo "release_name=$release_name" >> $GITHUB_OUTPUT
+          echo "release_file=$release_name.zip" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Artifact Release
@@ -312,7 +313,9 @@ jobs:
       - name: Compress Release
         id: compress-release
         run: |
-          tar --transform='s|^release/||' -cvzf ${{ steps.generate-filename.outputs.release_file }} release/
+          #tar --transform='s|^release/||' -cvzf ${{ steps.generate-filename.outputs.release_file }} release/
+          cd release
+          zip -r ../${{ steps.generate-filename.outputs.release_name }}.zip *
           echo "Release compressed as ${{ steps.generate-filename.outputs.release_file }}."
           ls -lh
         shell: bash
@@ -335,6 +338,12 @@ jobs:
 
             docker support(linux/amd64 only):
             `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
+
+            > [!TIP]
+            > If there are issues after downloading the resource, please consider visiting [actions](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/actions/runs/${{ gitea.run_number }}) to download the artifact.
+
+            > [!WARNING]
+            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
 
             Full Changelog:
 
