@@ -340,7 +340,7 @@ jobs:
             `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
 
             > [!TIP]
-            > If there are issues after downloading the resource, please consider visiting [actions](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/actions/runs/${{ gitea.run_number }}) to download the artifact.
+            > If there are issues after downloading the resource, please consider visiting [actions](${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_number }}) to download the artifact.
 
             > [!WARNING]
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
