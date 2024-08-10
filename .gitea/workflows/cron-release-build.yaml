@@ -2,7 +2,7 @@ name: SPT Release CI
 
 on:
   schedule:
-    - cron: "20 1-23/3 * * *"
+    - cron: '@daily'
   push:
     paths:
       - '.gitea/workflows/cron-release-build.yaml'
