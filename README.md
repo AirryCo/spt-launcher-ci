@@ -1,3 +1,7 @@
+![CI](https://dev.sp-tarkov.com/medusa/spt-build-ci/actions/workflows/cron-nightly-build.yaml/badge.svg)
+
+![CI](https://dev.sp-tarkov.com/medusa/spt-build-ci/actions/workflows/cron-release-build.yaml/badge.svg)
+
 # spt-build-ci
 
 Scripts to automate building SPT `modules` and `launcher`
