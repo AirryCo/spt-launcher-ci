@@ -68,7 +68,7 @@ jobs:
               echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
               echo "PROCEED=true" >> $GITHUB_OUTPUT
             else
-              echo "✋ All tags are the same, stop building."
+              echo "✋ Tags or commit hash are the same, stop building."
               echo "PROCEED=false" >> $GITHUB_OUTPUT
             fi
           fi
