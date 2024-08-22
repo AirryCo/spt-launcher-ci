@@ -47,7 +47,10 @@ jobs:
           TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
           echo "👽 TARGET_TAG_MODULES = $TARGET_TAG"
 
-          if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ]; then
+          TRIGGER_HASH=$(git rev-parse --short $TRIGGER_VERSION)
+          TARGET_HASH=$(git rev-parse --short $TARGET_TAG)
+
+          if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ] && [ "$TARGET_HASH" != "$TRIGGER_HASH" ]; then
             echo "✅ Tags are different, continue to build."
             echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
             echo "PROCEED=true" >> $GITHUB_OUTPUT
@@ -56,7 +59,11 @@ jobs:
             cd ${{ env.REPOSITORY_LAUNCHER }}
             TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
             echo "👽 TARGET_TAG_LAUNCHER = $TARGET_TAG"
-            if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ]; then
+
+            TARGET_HASH=$(git rev-parse --short $TARGET_TAG)
+            TRIGGER_HASH=$(git rev-parse --short $TRIGGER_VERSION)
+
+            if [ "$TARGET_TAG" != "$TRIGGER_VERSION" ] && [ "$TARGET_HASH" != "$TRIGGER_HASH" ]; then
               echo "✅ Tags are different, continue to build."
               echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
               echo "PROCEED=true" >> $GITHUB_OUTPUT
