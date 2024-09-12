@@ -236,7 +236,7 @@ jobs:
         with:
           lfs: 'true'
           fetch-depth: 0
-      - name: Update And Push
+      - name: Update Trigger And Push To SP-Tarkov
         run: |
           git config user.name "gitea-actions[bot]"
           git config user.email "bot@stblog.com.cn"
@@ -247,8 +247,12 @@ jobs:
           echo "modules=$modules" > trigger.nightly
           echo "launcher=$launcher" >> trigger.nightly
           git add .
-          git commit -m "🤖 up to modules\`$modules\`, launcher:\`$launcher\`."
+          git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
           git push
+      - name: Push to Github
+        run: |
+          git remote set-url origin https://AirryCo:${{ secrets.GH_GIT_TOKEN }}@github.com/AirryCo/spt-launcher-ci.git
+          git push -u origin ${{ gitea.ref_name }}
 
   assemble-and-publish:
     needs: [prepare, build-modules, build-launcher]
@@ -320,7 +324,7 @@ jobs:
           ls -lh
         shell: bash
 
-      - name: Create Pre-release
+      - name: Create Gitea Pre-release
         uses: akkuman/gitea-release-action@v1
         with:
           name: ${{ steps.generate-filename.outputs.DATE_TIME }}
@@ -337,10 +341,40 @@ jobs:
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
 
             docker support(linux/amd64 only):
+
             `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
 
-            > [!TIP]
-            > If there are issues after downloading the resource, please consider visiting [actions](${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_number }}) to download the artifact.
+            > [!WARNING]
+            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
+
+            Full Changelog:
+
+            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+
+            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+
+          files: |-
+            ${{ steps.generate-filename.outputs.release_file }}
+
+      - name: Create Github Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: AirryCo/spt-launcher-ci
+          name: ${{ steps.generate-filename.outputs.DATE_TIME }}
+          tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
+          token: ${{ secrets.GH_GIT_TOKEN }}
+          prerelease: true
+          body: |
+            ${{ steps.generate-filename.outputs.release_name }}
+
+            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+            Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
+
+            docker support(linux/amd64 only):
+
+            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
 
             > [!WARNING]
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.

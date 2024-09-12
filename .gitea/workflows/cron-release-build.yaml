@@ -233,7 +233,7 @@ jobs:
         with:
           lfs: 'true'
           fetch-depth: 0
-      - name: Update And Push
+      - name: Update Trigger And Push To SP-Tarkov
         run: |
           git config user.name "gitea-actions[bot]"
           git config user.email "bot@stblog.com.cn"
@@ -245,6 +245,11 @@ jobs:
           git push
           git tag ${{ needs.prepare.outputs.TARGET_TAG }}
           git push --tags
+
+      - name: Push to Github
+        run: |
+          git remote set-url origin https://AirryCo:${{ secrets.GH_GIT_TOKEN }}@github.com/AirryCo/spt-launcher-ci.git
+          git push -u origin ${{ gitea.ref_name }}
 
   assemble-and-publish:
     needs: [prepare, build-modules, build-launcher]
@@ -309,7 +314,8 @@ jobs:
         shell: bash
 
       # 测试版-预发型
-      - name: Create Pre-release
+      - name: Create Gitea Pre-release
+        id: create_prerelease
         if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
         uses: akkuman/gitea-release-action@v1
         with:
@@ -326,6 +332,7 @@ jobs:
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             docker support (linux/amd64 only):
+
             `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:${{ needs.prepare.outputs.TARGET_TAG }}`
 
             > [!WARNING]
@@ -340,8 +347,41 @@ jobs:
           files: |-
             ${{ steps.generate-filename.outputs.release_file }}
 
+      - name: Create Github Pre-release
+        id: create_gh_prerelease
+        if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: AirryCo/spt-launcher-ci
+          name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          token: ${{ secrets.GH_GIT_TOKEN }}
+          prerelease: true
+          body: |
+            ${{ needs.prepare.outputs.TARGET_TAG }} is pre-released! 🐞
+
+            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            docker support (linux/amd64 only):
+
+            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:${{ needs.prepare.outputs.TARGET_TAG }}`
+
+            > [!WARNING]
+            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
+
+            Full Changelog:
+
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+          files: |
+            ${{ steps.generate-filename.outputs.release_file }}
+
       # 正式版-正式发型
-      - name: Create Release
+      - name: Create Gitea Release
         id: create_release
         if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
         uses: akkuman/gitea-release-action@v1
@@ -358,6 +398,7 @@ jobs:
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             docker support (linux/amd64 only):
+
             `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:${{ needs.prepare.outputs.TARGET_TAG }}`
 
             > [!WARNING]
@@ -371,3 +412,34 @@ jobs:
           files: |-
             ${{ steps.generate-filename.outputs.release_file }}
 
+      - name: Create Github Release
+        id: create_gh_release
+        if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: AirryCo/spt-launcher-ci
+          name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          token: ${{ secrets.GH_GIT_TOKEN }}
+          prerelease: false
+          body: |
+            ${{ needs.prepare.outputs.TARGET_TAG }} is released! 🥳
+
+            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            docker support (linux/amd64 only):
+
+            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:${{ needs.prepare.outputs.TARGET_TAG }}`
+
+            > [!WARNING]
+            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
+
+            Full Changelog:
+
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+          files: |
+            ${{ steps.generate-filename.outputs.release_file }}
