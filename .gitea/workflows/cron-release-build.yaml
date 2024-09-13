@@ -31,11 +31,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          lfs: 'true'
           fetch-depth: 0
       - name: Get target tag
         id: get-target-tag
         run: |
+          git config --global http.sslVerify false
+          git config --global http.postBuffer 1048576000
           git pull
 
           TRIGGER_VERSION=$(cat trigger)
@@ -106,7 +107,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          lfs: 'true'
           fetch-depth: 0
       - name: Setup Dotnet
         uses: actions/setup-dotnet@v4
@@ -115,6 +115,8 @@ jobs:
       - name: Clone Modules
         id: clone-modules
         run: |
+          git config --global http.sslVerify false
+          git config --global http.postBuffer 1048576000
           git pull
           git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
@@ -177,8 +179,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          lfs: 'true'
       - name: Setup Dotnet
         uses: actions/setup-dotnet@v4
         with:
@@ -186,6 +186,8 @@ jobs:
       - name: Clone Launcher
         id: clone-launcher
         run: |
+          git config --global http.sslVerify false
+          git config --global http.postBuffer 1048576000
           git pull
           git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
           cd ${{ env.REPOSITORY_LAUNCHER }}
@@ -231,7 +233,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          lfs: 'true'
           fetch-depth: 0
       - name: Update Trigger And Push To SP-Tarkov
         run: |
@@ -258,7 +259,6 @@ jobs:
       - name: Clone Build Project
         uses: actions/checkout@v4
         with:
-          lfs: 'true'
           fetch-depth: 0
 
       - name: Clean Directory
