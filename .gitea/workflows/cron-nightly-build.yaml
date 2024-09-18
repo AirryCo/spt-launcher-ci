@@ -356,7 +356,7 @@ jobs:
       - name: Create Github Pre-release
         uses: softprops/action-gh-release@v2
         with:
-          repository: AirryCo/spt-launcher-ci
+          repository: https://github.com/AirryCo/spt-launcher-ci
           name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           token: ${{ secrets.GH_GIT_TOKEN }}

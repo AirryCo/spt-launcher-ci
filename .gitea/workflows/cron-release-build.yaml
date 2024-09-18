@@ -352,7 +352,7 @@ jobs:
         if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
         uses: softprops/action-gh-release@v2
         with:
-          repository: AirryCo/spt-launcher-ci
+          repository: https://github.com/AirryCo/spt-launcher-ci
           name: ${{ needs.prepare.outputs.TARGET_TAG }}
           tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
           token: ${{ secrets.GH_GIT_TOKEN }}
@@ -417,7 +417,7 @@ jobs:
         if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
         uses: softprops/action-gh-release@v2
         with:
-          repository: AirryCo/spt-launcher-ci
+          repository: https://github.com/AirryCo/spt-launcher-ci
           name: ${{ needs.prepare.outputs.TARGET_TAG }}
           tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
           token: ${{ secrets.GH_GIT_TOKEN }}
