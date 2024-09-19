@@ -1,11 +1,11 @@
-name: SPT Nightly CI
+name: SPT.Launcher Build Nightly
 
 on:
   schedule:
-    - cron: "10 1-23/12 * * *"
+    - cron: "15 1-23/12 * * *"
   push:
     paths:
-      - '.gitea/workflows/cron-nightly-build.yaml'
+      - '.github/workflows/cron-nightly-build.yaml'
 
 env:
   NIGHTLY_BRANCH_MODULES: 310-dev
@@ -13,6 +13,7 @@ env:
   NIGHTLY_BRANCH_SERVER: 3.10.0-DEV
 
   SERVER_DOMAIN: dev.sp-tarkov.com
+  SERVER_URL: https://${{ env.SERVER_DOMAIN }}
   BUILD_IMAGE: medusa/spt-build
   REPOSITORY_OWNER: SPT
   REPOSITORY_MODULES: Modules
@@ -29,7 +30,8 @@ jobs:
       
       SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
       EFT_VERSION: ${{ steps.versions.outputs.EFT_VERSION }}
-      SERVER_COMMIT: ${{ steps.versions.outputs.SERVER_COMMIT }}
+      SERVER_COMMIT_LINUX: ${{ steps.versions.outputs.SERVER_COMMIT_LINUX }}
+      SERVER_COMMIT_WINDOWS: ${{ steps.versions.outputs.SERVER_COMMIT_WINDOWS }}
 
     steps:
       - name: Checkout
@@ -39,12 +41,10 @@ jobs:
       - name: Get Latest Commit From SPT
         id: get-latest-commit
         run: |
-          git config --global http.sslVerify false
-          git config --global http.postBuffer 1048576000
           git pull
           source trigger.nightly
 
-          MODULES_LATEST_COMMIT_HASH=$(git ls-remote ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git refs/heads/${{ env.NIGHTLY_BRANCH_MODULES }} | awk '{print $1}')
+          MODULES_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git refs/heads/${{ env.NIGHTLY_BRANCH_MODULES }} | awk '{print $1}')
           modules_last_commit=${modules:0:7}
           modules_latest_commit=${MODULES_LATEST_COMMIT_HASH:0:7}
           echo "🤖 modules_last_commit = $modules_last_commit"
@@ -53,7 +53,7 @@ jobs:
           echo "LAUNCHER_LAST_BUILT_HASH=$launcher" >> $GITHUB_OUTPUT
 
           if [ "$modules_last_commit" = "$modules_latest_commit" ]; then
-            LAUNCHER_LATEST_COMMIT_HASH=$(git ls-remote ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_LAUNCHER }} | awk '{print $1}')
+            LAUNCHER_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_LAUNCHER }} | awk '{print $1}')
             launcher_last_commit=${launcher:0:7}
             launcher_latest_commit="${LAUNCHER_LATEST_COMMIT_HASH:0:7}"
             echo "🤖 launcher_last_commit = $launcher_last_commit"
@@ -75,24 +75,27 @@ jobs:
         id: versions
         if: steps.get-latest-commit.outputs.PROCEED == 'true'
         run: |
-          SERVER_COMMIT=$(git ls-remote ${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }} | awk '{print $1}' | cut -c1-8)
+          SERVER_COMMIT_LINUX=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }} | awk '{print $1}' | cut -c1-8)
+          SERVER_COMMIT_WINDOWS=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}_windows | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget ${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/raw/branch/${{ env.NIGHTLY_BRANCH_SERVER }}/project/assets/configs/core.json
+          wget ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/raw/branch/${{ env.NIGHTLY_BRANCH_SERVER }}/project/assets/configs/core.json
           SPT_VERSION=$(jq -r '.sptVersion' core.json)
           EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 
           echo "👽 SPT_VERSION = $SPT_VERSION"
           echo "👽 EFT_VERSION = $EFT_VERSION"
-          echo "👽 SERVER_COMMIT = $SERVER_COMMIT"
+          echo "👽 SERVER_COMMIT_LINUX = $SERVER_COMMIT_LINUX"
+          echo "👽 SERVER_COMMIT_WINDOWS = $SERVER_COMMIT_WINDOWS"
           echo "SPT_VERSION=$SPT_VERSION" >> $GITHUB_OUTPUT
           echo "EFT_VERSION=$EFT_VERSION" >> $GITHUB_OUTPUT
-          echo "SERVER_COMMIT=$SERVER_COMMIT" >> $GITHUB_OUTPUT
+          echo "SERVER_COMMIT_LINUX=$SERVER_COMMIT_LINUX" >> $GITHUB_OUTPUT
+          echo "SERVER_COMMIT_WINDOWS=$SERVER_COMMIT_WINDOWS" >> $GITHUB_OUTPUT
 
   build-modules:
     needs: prepare
     if: needs.prepare.outputs.PROCEED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: N5105
     container:
       image: ${{ env.SERVER_DOMAIN }}/${{ env.BUILD_IMAGE }}:dotnet
       volumes:
@@ -112,12 +115,9 @@ jobs:
       - name: Clone Modules
         id: clone-modules
         run: |
-          git config --global http.sslVerify false
-          git config --global http.postBuffer 1048576000
           git pull
-          git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          git clone -b ${{ env.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
-          git checkout ${{ env.NIGHTLY_BRANCH_MODULES }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
@@ -130,7 +130,7 @@ jobs:
           if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
             wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar
           fi
-          tar -xvf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ gitea.workspace }}/${{ env.REPOSITORY_MODULES }}/project/Shared/
+          tar -xf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C ${{ github.workspace }}/${{ env.REPOSITORY_MODULES }}/project/Shared/
       - name: Cache Modules Build
         uses: actions/cache@v4
         id: cache-modules-build
@@ -169,8 +169,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ${{ env.SERVER_DOMAIN }}/${{ env.BUILD_IMAGE }}:dotnet
-      volumes:
-        - act-toolcache:/opt/hostedtoolcache
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
       LAUNCHER_LATEST_BUILT_HASH: ${{ steps.status.outputs.LAUNCHER_LATEST_BUILT_HASH }}
@@ -185,12 +183,9 @@ jobs:
       - name: Clone Launcher
         id: clone-launcher
         run: |
-          git config --global http.sslVerify false
-          git config --global http.postBuffer 1048576000
           git pull
-          git clone ${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+          git clone -b ${{ env.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
           cd ${{ env.REPOSITORY_LAUNCHER }}
-          git checkout ${{ env.NIGHTLY_BRANCH_LAUNCHER }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
@@ -247,10 +242,6 @@ jobs:
           git add .
           git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
           git push
-      - name: Push to Github
-        run: |
-          git remote set-url origin https://AirryCo:${{ secrets.GH_GIT_TOKEN }}@github.com/AirryCo/spt-launcher-ci.git
-          git push -u origin ${{ gitea.ref_name }}
 
   assemble-and-publish:
     needs: [prepare, build-modules, build-launcher]
@@ -294,10 +285,10 @@ jobs:
         run: |
           SPT_VERSION=${{ needs.prepare.outputs.SPT_VERSION }}
           EFT_VERSION=${{ needs.prepare.outputs.EFT_VERSION }}
-          SERVER_COMMIT=${{ needs.prepare.outputs.SERVER_COMMIT }}
+          SERVER_COMMIT_LINUX=${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}
           DATE_TIME=$(date +%Y%m%d%H%M%S)
 
-          release_name="SPT${SPT_VERSION}-Nightly-EFT${EFT_VERSION}-${SERVER_COMMIT}-${DATE_TIME}"
+          release_name="spt-launcher-${SPT_VERSION}-Nightly-EFT${EFT_VERSION}-${SERVER_COMMIT_LINUX}-${DATE_TIME}"
           echo "DATE_TIME=$DATE_TIME" >> $GITHUB_OUTPUT
           echo "release_name=$release_name" >> $GITHUB_OUTPUT
           echo "release_file=$release_name.zip" >> $GITHUB_OUTPUT
@@ -314,7 +305,6 @@ jobs:
       - name: Compress Release
         id: compress-release
         run: |
-          #tar --transform='s|^release/||' -cvzf ${{ steps.generate-filename.outputs.release_file }} release/
           cd release
           zip -r ../${{ steps.generate-filename.outputs.release_name }}.zip *
           echo "Release compressed as ${{ steps.generate-filename.outputs.release_file }}."
@@ -324,22 +314,31 @@ jobs:
       - name: Create Gitea Pre-release
         uses: akkuman/gitea-release-action@v1
         with:
+          server_url: ${{ env.SERVER_URL }}
+          repository: ${{ env.REPOSITORY_SERVER_MEDUSA }}
+          token: ${{ secrets.GIT_PUSH_TO_SPT }}
           name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
-          token: ${{ gitea.token }}
-          sha256sum: true
           prerelease: true
           body: |
             ${{ steps.generate-filename.outputs.release_name }}
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
+
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
 
-            docker support(linux/amd64 only):
+            docker supported for SPT.Server(linux/amd64 only):
 
-            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
+            ```bash
+            docker pull stblog/spt-server:nightly
+            docker pull ghcr.io/airryco/spt-server:nightly
+            ```
+
+            Download Page: ${{ github.server_url }}/${{ github.repository }}/releases
 
             > [!WARNING]
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
@@ -349,38 +348,42 @@ jobs:
             - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
 
             - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
-
-          files: |-
-            ${{ steps.generate-filename.outputs.release_file }}
 
       - name: Create Github Pre-release
         uses: softprops/action-gh-release@v2
         with:
-          repository: https://github.com/AirryCo/spt-launcher-ci
           name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
-          token: ${{ secrets.GH_GIT_TOKEN }}
           prerelease: true
           body: |
             ${{ steps.generate-filename.outputs.release_name }}
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
+
+            Server commit:
+
+              - windows: [${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }})
+              - linux: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
+
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
-
-            docker support(linux/amd64 only):
-
-            `docker pull ${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_SERVER }}:nightly`
 
             > [!WARNING]
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
 
+            docker supported for SPT.Server(linux/amd64 only):
+
+            ```bash
+            docker pull stblog/spt-server:nightly
+            docker pull ghcr.io/airryco/spt-server:nightly
+            ```
+
             Full Changelog:
 
-            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
 
-            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
 
-          files: |-
+          files: |
             ${{ steps.generate-filename.outputs.release_file }}
