@@ -13,7 +13,7 @@ env:
   NIGHTLY_BRANCH_SERVER: 3.10.0-DEV
 
   SERVER_DOMAIN: dev.sp-tarkov.com
-  SERVER_URL: https://${{ env.SERVER_DOMAIN }}
+  SERVER_URL: https://dev.sp-tarkov.com
   BUILD_IMAGE: medusa/spt-build
   REPOSITORY_OWNER: SPT
   REPOSITORY_MODULES: Modules
