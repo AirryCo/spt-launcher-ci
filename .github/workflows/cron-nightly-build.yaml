@@ -325,7 +325,7 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ gitea.server_url }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
+            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
 
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
@@ -345,9 +345,9 @@ jobs:
 
             Full Changelog:
 
-            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
 
-            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ gitea.server_url }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
 
       - name: Create Github Pre-release
         uses: softprops/action-gh-release@v2
