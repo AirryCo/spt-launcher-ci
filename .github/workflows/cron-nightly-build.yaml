@@ -116,7 +116,7 @@ jobs:
         id: clone-modules
         run: |
           git pull
-          git clone -b ${{ env.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          git clone --depth=1 -b ${{ env.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
@@ -184,7 +184,7 @@ jobs:
         id: clone-launcher
         run: |
           git pull
-          git clone -b ${{ env.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+          git clone --depth=1 -b ${{ env.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
           cd ${{ env.REPOSITORY_LAUNCHER }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"

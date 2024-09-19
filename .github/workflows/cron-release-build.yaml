@@ -42,7 +42,7 @@ jobs:
           echo "👽 TRIGGER_VERSION = $TRIGGER_VERSION"
           echo "TRIGGER_VERSION=$TRIGGER_VERSION" >> $GITHUB_OUTPUT
 
-          git clone ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
           TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
           echo "👽 TARGET_TAG_MODULES = $TARGET_TAG"
@@ -55,7 +55,7 @@ jobs:
             echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
             echo "PROCEED=true" >> $GITHUB_OUTPUT
           else
-            git clone ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+            git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
             cd ${{ env.REPOSITORY_LAUNCHER }}
             TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
             echo "👽 TARGET_TAG_LAUNCHER = $TARGET_TAG"
@@ -115,7 +115,7 @@ jobs:
         id: clone-modules
         run: |
           git pull
-          git clone -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          git clone --depth=1 -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
@@ -181,7 +181,7 @@ jobs:
         id: clone-launcher
         run: |
           git pull
-          git clone -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+          git clone --depth=1 -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
           cd ${{ env.REPOSITORY_LAUNCHER }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
