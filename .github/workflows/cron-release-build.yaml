@@ -42,7 +42,7 @@ jobs:
           echo "👽 TRIGGER_VERSION = $TRIGGER_VERSION"
           echo "TRIGGER_VERSION=$TRIGGER_VERSION" >> $GITHUB_OUTPUT
 
-          git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          git clone ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
           TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
           echo "👽 TARGET_TAG_MODULES = $TARGET_TAG"
@@ -55,7 +55,7 @@ jobs:
             echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
             echo "PROCEED=true" >> $GITHUB_OUTPUT
           else
-            git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+            git clone ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
             cd ${{ env.REPOSITORY_LAUNCHER }}
             TARGET_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | head -n 1)
             echo "👽 TARGET_TAG_LAUNCHER = $TARGET_TAG"
