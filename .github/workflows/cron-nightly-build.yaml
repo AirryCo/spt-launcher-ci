@@ -97,7 +97,7 @@ jobs:
     if: needs.prepare.outputs.PROCEED == 'true'
     runs-on: N5105
     container:
-      image: ${{ env.SERVER_DOMAIN }}/${{ env.BUILD_IMAGE }}:dotnet
+      image: dev.sp-tarkov.com/medusa/spt-build:dotnet
       volumes:
         - act-toolcache:/opt/hostedtoolcache
         - escapefromtarkov:/escapefromtarkov
