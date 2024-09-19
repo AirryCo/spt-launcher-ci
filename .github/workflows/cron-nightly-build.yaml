@@ -145,7 +145,7 @@ jobs:
           cd ${{ env.REPOSITORY_MODULES }}/project
           dotnet restore
           dotnet build
-          printf "\n👽 Built!\n\n"
+          printf "\n👽 Built success!\n\n"
           tree Build
 
       - name: Artifact Modules
