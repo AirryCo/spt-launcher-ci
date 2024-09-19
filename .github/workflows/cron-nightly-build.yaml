@@ -168,7 +168,7 @@ jobs:
     if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.SERVER_DOMAIN }}/${{ env.BUILD_IMAGE }}:dotnet
+      image: dev.sp-tarkov.com/medusa/spt-build:dotnet
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
       LAUNCHER_LATEST_BUILT_HASH: ${{ steps.status.outputs.LAUNCHER_LATEST_BUILT_HASH }}
