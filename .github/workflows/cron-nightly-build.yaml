@@ -167,7 +167,7 @@ jobs:
   build-launcher:
     needs: prepare
     if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: N5015
     container:
       image: dev.sp-tarkov.com/medusa/spt-build:dotnet
     outputs:
