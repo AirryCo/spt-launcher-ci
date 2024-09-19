@@ -1,6 +1,6 @@
-![CI](https://dev.sp-tarkov.com/medusa/spt-launcher-ci/actions/workflows/cron-nightly-build.yaml/badge.svg)
+[![SPT.Launcher Build Nightly](https://github.com/AirryCo/spt-launcher-ci/actions/workflows/cron-nightly-build.yaml/badge.svg)](https://github.com/AirryCo/spt-launcher-ci/actions/workflows/cron-nightly-build.yaml)
 
-![CI](https://dev.sp-tarkov.com/medusa/spt-launcher-ci/actions/workflows/cron-release-build.yaml/badge.svg)
+[![SPT.Launcher Release Build](https://github.com/AirryCo/spt-launcher-ci/actions/workflows/cron-release-build.yaml/badge.svg)](https://github.com/AirryCo/spt-launcher-ci/actions/workflows/cron-release-build.yaml)
 
 # spt-launcher-ci
 
@@ -14,14 +14,16 @@ The server that matches the `launcher` and `modules` compiled from this reposito
 
 You can use `Docker` to run the server.
 
-https://dev.sp-tarkov.com/medusa/-/packages/container/spt-server/latest
+- DockerHub: https://hub.docker.com/r/stblog/spt-server
+
+- GHCR: https://github.com/AirryCo/spt-server-ci/pkgs/container/spt-server
 
 ```bash
 # Stable version
-docker pull dev.sp-tarkov.com/medusa/spt-server:latest
+docker pull stblog/spt-server:latest
 
 # nightly/development version
-docker pull dev.sp-tarkov.com/medusa/spt-server:nightly
+docker pull stblog/spt-server:nightly
 ```
 
 > [!WARNING]
@@ -39,14 +41,16 @@ docker pull dev.sp-tarkov.com/medusa/spt-server:nightly
 
 你可以选择docker来运行服务端：
 
-https://dev.sp-tarkov.com/medusa/-/packages/container/spt-server/latest
+- DockerHub: https://hub.docker.com/r/stblog/spt-server
+
+- GHCR: https://github.com/AirryCo/spt-server-ci/pkgs/container/spt-server
 
 ```bash
 # 稳定版
-docker pull dev.sp-tarkov.com/medusa/spt-server:latest
+docker pull stblog/spt-server:latest
 
 # 每夜版/开发板
-docker pull dev.sp-tarkov.com/medusa/spt-server:nightly
+docker pull stblog/spt-server:nightly
 ```
 > [!WARNING]
 > 下载之后，请使用WinRAR、[7-Zip](https://www.7-zip.org/)等解压缩软件进行解压，再复制到塔科夫根目录，请勿使用windows资源管理器直接打开并复制!!!
