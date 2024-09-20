@@ -15,6 +15,7 @@ env:
   REPOSITORY_MODULES: Modules
   REPOSITORY_LAUNCHER: Launcher
   REPOSITORY_SERVER: medusa/spt-server
+  REPOSITORY_LAUNCHER_CI: medusa/spt-launcher-ci
 
 jobs:
   prepare:
@@ -241,7 +242,7 @@ jobs:
         shell: bash
       - name: Update Trigger And Push To SP-Tarkov
         run: |
-          git clone --depth=1 ${{ env.SERVER_URL }}/medusa/spt-launcher-ci.git SP-Tarkov
+          git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git SP-Tarkov
           cd SP-Tarkov
           git config user.name "gitea-actions[bot]"
           git config user.email "bot@stblog.com.cn"
@@ -249,7 +250,7 @@ jobs:
           echo "${{ needs.prepare.outputs.TARGET_TAG }}" > trigger.release
           git add trigger.release
           git commit -m "🤖 bump to \`${{ needs.prepare.outputs.TARGET_TAG }}\`"
-          REMOTE_URL="https://medusa:${{ secrets.GIT_PUSH_TO_SPT }}@dev.sp-tarkov.com/${{ env.REPOSITORY_SERVER_MEDUSA }}.git"
+          REMOTE_URL="https://medusa:${{ secrets.GIT_PUSH_TO_SPT }}@${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git"
           git remote set-url origin "$REMOTE_URL"
           git push
           git tag ${{ needs.prepare.outputs.TARGET_TAG }}
@@ -359,7 +360,7 @@ jobs:
         uses: akkuman/gitea-release-action@v1
         with:
           server_url: ${{ env.SERVER_URL }}
-          repository: medusa/spt-launcher-ci
+          repository: ${{ env.REPOSITORY_LAUNCHER_CI }}
           token: ${{ secrets.GIT_PUSH_TO_SPT }}
           name: ${{ needs.prepare.outputs.TARGET_TAG }}
           tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
@@ -433,7 +434,7 @@ jobs:
         uses: akkuman/gitea-release-action@v1
         with:
           server_url: ${{ env.SERVER_URL }}
-          repository: medusa/spt-launcher-ci
+          repository: ${{ env.REPOSITORY_LAUNCHER_CI }}
           token: ${{ secrets.GIT_PUSH_TO_SPT }}
           name: ${{ needs.prepare.outputs.TARGET_TAG }}
           tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}

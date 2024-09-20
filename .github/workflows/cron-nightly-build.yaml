@@ -19,6 +19,7 @@ env:
   REPOSITORY_MODULES: Modules
   REPOSITORY_LAUNCHER: Launcher
   REPOSITORY_SERVER: medusa/spt-server
+  REPOSITORY_LAUNCHER_CI: medusa/spt-launcher-ci
 
 jobs:
   prepare:
@@ -246,7 +247,7 @@ jobs:
         shell: bash
       - name: Update Trigger And Push To SP-Tarkov
         run: |
-          git clone --depth=1 ${{ env.SERVER_URL }}/medusa/spt-launcher-ci.git SP-Tarkov
+          git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git SP-Tarkov
           cd SP-Tarkov
           git config user.name "github-actions[bot]"
           git config user.email "bot@stblog.com.cn"
@@ -257,7 +258,7 @@ jobs:
           echo "launcher=$launcher" >> trigger.nightly
           git add trigger.nightly
           git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
-          REMOTE_URL="https://medusa:${{ secrets.GIT_PUSH_TO_SPT }}@dev.sp-tarkov.com/medusa/spt-launcher-ci.git"
+          REMOTE_URL="https://medusa:${{ secrets.GIT_PUSH_TO_SPT }}@${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git"
           git remote set-url origin "$REMOTE_URL"
           git push
         shell: bash
@@ -373,7 +374,7 @@ jobs:
         uses: akkuman/gitea-release-action@v1
         with:
           server_url: ${{ env.SERVER_URL }}
-          repository: medusa/spt-launcher-ci
+          repository: ${{ env.REPOSITORY_LAUNCHER_CI }}
           token: ${{ secrets.GIT_PUSH_TO_SPT }}
           name: ${{ steps.generate-filename.outputs.DATE_TIME }}
           tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
