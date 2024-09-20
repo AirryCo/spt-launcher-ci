@@ -303,7 +303,7 @@ jobs:
           TARGET_TAG=${{ needs.prepare.outputs.TARGET_TAG }}
           DATE=$(date +%Y%m%d)
 
-          release_name="spt-launcher-${SPT_VERSION}-Release-EFT${EFT_VERSION}-${SERVER_COMMIT}-${DATE}"
+          release_name="spt-launcher-${{ needs.prepare.outputs.TARGET_TAG }}-Release-EFT${EFT_VERSION}-${SERVER_COMMIT}-${DATE}"
           echo "release_name=$release_name" >> $GITHUB_OUTPUT
           echo "release_file=$release_name.zip" >> $GITHUB_OUTPUT
         shell: bash
