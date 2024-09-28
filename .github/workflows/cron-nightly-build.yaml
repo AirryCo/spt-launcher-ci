@@ -343,9 +343,8 @@ jobs:
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
             Server commit:
-
-              - windows: [${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }})
               - linux: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
+              - windows: [${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }})
 
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
@@ -354,7 +353,7 @@ jobs:
             > [!WARNING]
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
 
-            docker supported for SPT.Server(linux/amd64 only):
+            **Docker Supported for SPT.Server** (linux/amd64 only):
 
             ```bash
             docker pull stblog/spt-server:nightly
@@ -362,10 +361,8 @@ jobs:
             ```
 
             Full Changelog:
-
-            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
-
-            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+              - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+              - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
 
           files: |
             ${{ steps.generate-filename.outputs.release_file }}
@@ -384,13 +381,15 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
+            Server Commit:
+              - linux: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
+              - windows: [${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }})
 
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
 
-            docker supported for SPT.Server(linux/amd64 only):
+            **Docker Supported for SPT.Server** (linux/amd64 only):
 
             ```bash
             docker pull stblog/spt-server:nightly
@@ -403,8 +402,6 @@ jobs:
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
 
             Full Changelog:
-
-            - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
-
-            - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+              - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+              - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
 
