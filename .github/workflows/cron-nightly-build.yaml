@@ -342,16 +342,20 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit:
-              - linux: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
-              - windows: [${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }})
-
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
 
+            Commit hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+
             > [!WARNING]
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases
 
             **Docker Supported for SPT.Server** (linux/amd64 only):
 
@@ -381,13 +385,17 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server Commit:
-              - linux: [${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }})
-              - windows: [${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT_WINDOWS }})
-
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
+
+            Commit hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases
 
             **Docker Supported for SPT.Server** (linux/amd64 only):
 

@@ -102,6 +102,7 @@ jobs:
         - escapefromtarkov:/escapefromtarkov
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+      MODULES_COMMIT_HASH: ${{ steps.clone-modules.outputs.COMMIT_ID }}
 
     steps:
       - name: Checkout
@@ -171,6 +172,7 @@ jobs:
       image: dev.sp-tarkov.com/medusa/spt-build:dotnet
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+      LAUNCHER_COMMIT_HASH: ${{ steps.clone-launcher.outputs.COMMIT_ID }}
 
     steps:
       - name: Checkout
@@ -331,11 +333,17 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
-
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
-            docker supported for SPT.Server(linux/amd64 only):
+            Commit Hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
+
+            **Docker Supported for SPT.Server** (linux/amd64 only):
 
             ```bash
             docker pull stblog/spt-server:nightly
@@ -346,9 +354,7 @@ jobs:
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
 
             Full Changelog:
-
             - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
-
             - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
 
           files: |
@@ -370,11 +376,17 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
-
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
-            docker supported for SPT.Server(linux/amd64 only):
+            Commit Hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
+
+            **Docker Supported for SPT.Server** (linux/amd64 only):
 
             ```bash
             docker pull stblog/spt-server:nightly
@@ -387,9 +399,7 @@ jobs:
             > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
 
             Full Changelog:
-
             - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
-
             - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
 
       # 正式版-正式发型
@@ -406,9 +416,15 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
-
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            Commit Hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
 
             **Docker Supported for SPT.Server** (linux/amd64 only):
 
@@ -441,9 +457,15 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Server commit: [${{ needs.prepare.outputs.SERVER_COMMIT }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/src/commit/${{ needs.prepare.outputs.SERVER_COMMIT }})
-
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            Commit Hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
 
             **Docker Supported for SPT.Server** (linux/amd64 only):
 
