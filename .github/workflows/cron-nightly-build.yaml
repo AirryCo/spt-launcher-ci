@@ -2,7 +2,7 @@ name: SPT.Launcher Build Nightly
 
 on:
   schedule:
-    - cron: "15 1-23/12 * * *"
+    - cron: "0 3 * * *"
   push:
     paths:
       - '.github/workflows/cron-nightly-build.yaml'

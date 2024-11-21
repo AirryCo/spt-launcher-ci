@@ -2,7 +2,7 @@ name: SPT.Launcher Release Build
 
 on:
   schedule:
-    - cron: "0 1-23/12 * * *"
+    - cron: "30 2 * * *"
   push:
     paths:
       - '.github/workflows/cron-release-build.yaml'
