@@ -12,14 +12,11 @@ env:
   NIGHTLY_BRANCH_LAUNCHER: 3.10.0-DEV
   NIGHTLY_BRANCH_SERVER: 3.10.0-DEV
 
-  SERVER_DOMAIN: dev.sp-tarkov.com
-  SERVER_URL: https://dev.sp-tarkov.com
-  BUILD_IMAGE: medusa/spt-build
-  REPOSITORY_OWNER: SPT
-  REPOSITORY_MODULES: Modules
-  REPOSITORY_LAUNCHER: Launcher
-  REPOSITORY_SERVER: medusa/spt-server
-  REPOSITORY_LAUNCHER_CI: medusa/spt-launcher-ci
+  SERVER_URL: https://github.com
+  REPOSITORY_OWNER: sp-tarkov
+  REPOSITORY_MODULES: modules
+  REPOSITORY_LAUNCHER: launcher
+  REPOSITORY_SERVER: AirryCo/spt-server
 
 jobs:
   prepare:
@@ -245,23 +242,6 @@ jobs:
           git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
           git push
         shell: bash
-      - name: Update Trigger And Push To SP-Tarkov
-        run: |
-          git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git SP-Tarkov
-          cd SP-Tarkov
-          git config user.name "github-actions[bot]"
-          git config user.email "bot@stblog.com.cn"
-          rm trigger.nightly
-          modules=${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}
-          launcher=${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}
-          echo "modules=$modules" > trigger.nightly
-          echo "launcher=$launcher" >> trigger.nightly
-          git add trigger.nightly
-          git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
-          REMOTE_URL="https://medusa:${{ secrets.GIT_PUSH_TO_SPT }}@${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git"
-          git remote set-url origin "$REMOTE_URL"
-          git push
-        shell: bash
 
   assemble-and-publish:
     needs: [prepare, build-modules, build-launcher]
@@ -370,46 +350,3 @@ jobs:
 
           files: |
             ${{ steps.generate-filename.outputs.release_file }}
-
-      - name: Create Gitea Pre-release
-        uses: akkuman/gitea-release-action@v1
-        with:
-          server_url: ${{ env.SERVER_URL }}
-          repository: ${{ env.REPOSITORY_LAUNCHER_CI }}
-          token: ${{ secrets.GIT_PUSH_TO_SPT }}
-          name: ${{ steps.generate-filename.outputs.DATE_TIME }}
-          tag_name: ${{ steps.generate-filename.outputs.DATE_TIME }}
-          prerelease: true
-          body: |
-            ${{ steps.generate-filename.outputs.release_name }}
-
-            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
-
-            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
-
-            Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
-
-            Commit hash:
-              - modules: [${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
-              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
-
-            **SPT.Server Download Page**:
-
-            ${{ github.server_url }}/AirryCo/spt-server-ci/releases
-
-            **Docker Supported for SPT.Server** (linux/amd64 only):
-
-            ```bash
-            docker pull stblog/spt-server:nightly
-            docker pull ghcr.io/airryco/spt-server:nightly
-            ```
-
-            Download Page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.generate-filename.outputs.DATE_TIME }}
-
-            > [!WARNING]
-            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
-
-            Full Changelog:
-              - modules: [${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}....${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.MODULES_LAST_BUILT_HASH }}...${{ needs.build-modules.outputs.MODULES_LATEST_BUILT_HASH }})
-              - launcher: [${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}....${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.LAUNCHER_LAST_BUILT_HASH }}...${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }})
-

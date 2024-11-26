@@ -8,14 +8,11 @@ on:
       - '.github/workflows/cron-release-build.yaml'
 
 env:
-  SERVER_DOMAIN: dev.sp-tarkov.com
-  SERVER_URL: https://dev.sp-tarkov.com
-  BUILD_IMAGE: medusa/spt-build
-  REPOSITORY_OWNER: SPT
-  REPOSITORY_MODULES: Modules
-  REPOSITORY_LAUNCHER: Launcher
-  REPOSITORY_SERVER: medusa/spt-server
-  REPOSITORY_LAUNCHER_CI: medusa/spt-launcher-ci
+  SERVER_URL: https://github.com
+  REPOSITORY_OWNER: sp-tarkov
+  REPOSITORY_MODULES: modules
+  REPOSITORY_LAUNCHER: launcher
+  REPOSITORY_SERVER: AirryCo/spt-server
 
 jobs:
   prepare:
@@ -242,22 +239,6 @@ jobs:
           git tag ${{ needs.prepare.outputs.TARGET_TAG }}
           git push -u origin ${{ needs.prepare.outputs.TARGET_TAG }}
         shell: bash
-      - name: Update Trigger And Push To SP-Tarkov
-        run: |
-          git clone --depth=1 ${{ env.SERVER_URL }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git SP-Tarkov
-          cd SP-Tarkov
-          git config user.name "gitea-actions[bot]"
-          git config user.email "bot@stblog.com.cn"
-          rm trigger.release
-          echo "${{ needs.prepare.outputs.TARGET_TAG }}" > trigger.release
-          git add trigger.release
-          git commit -m "🤖 bump to \`${{ needs.prepare.outputs.TARGET_TAG }}\`"
-          REMOTE_URL="https://medusa:${{ secrets.GIT_PUSH_TO_SPT }}@${{ env.SERVER_DOMAIN }}/${{ env.REPOSITORY_LAUNCHER_CI }}.git"
-          git remote set-url origin "$REMOTE_URL"
-          git push
-          git tag ${{ needs.prepare.outputs.TARGET_TAG }}
-          git push -u origin ${{ needs.prepare.outputs.TARGET_TAG }}
-        shell: bash
 
   assemble-and-publish:
     needs: [prepare, build-modules, build-launcher]
@@ -360,48 +341,6 @@ jobs:
           files: |
             ${{ steps.generate-filename.outputs.release_file }}
 
-      - name: Create Gitea Pre-release
-        id: create_gitea_prerelease
-        if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
-        uses: akkuman/gitea-release-action@v1
-        with:
-          server_url: ${{ env.SERVER_URL }}
-          repository: ${{ env.REPOSITORY_LAUNCHER_CI }}
-          token: ${{ secrets.GIT_PUSH_TO_SPT }}
-          name: ${{ needs.prepare.outputs.TARGET_TAG }}
-          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
-          prerelease: true
-          body: |
-            ${{ needs.prepare.outputs.TARGET_TAG }} is pre-released! 🐞
-
-            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
-
-            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
-
-            Commit Hash:
-              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
-              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
-
-            **SPT.Server Download Page**:
-
-            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
-
-            **Docker Supported for SPT.Server** (linux/amd64 only):
-
-            ```bash
-            docker pull stblog/spt-server:nightly
-            docker pull ghcr.io/airryco/spt-server:nightly
-            ```
-
-            Download Page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
-
-            > [!WARNING]
-            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
-
-            Full Changelog:
-            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
-            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
-
       # 正式版-正式发型
       - name: Create Github Release
         id: create_gh_release
@@ -441,45 +380,3 @@ jobs:
               - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
           files: |
             ${{ steps.generate-filename.outputs.release_file }}
-
-      - name: Create Gitea Release
-        id: create_gitea_release
-        if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
-        uses: akkuman/gitea-release-action@v1
-        with:
-          server_url: ${{ env.SERVER_URL }}
-          repository: ${{ env.REPOSITORY_LAUNCHER_CI }}
-          token: ${{ secrets.GIT_PUSH_TO_SPT }}
-          name: ${{ needs.prepare.outputs.TARGET_TAG }}
-          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
-          body: |
-            ${{ needs.prepare.outputs.TARGET_TAG }} is released! 🥳
-
-            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
-
-            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
-
-            Commit Hash:
-              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
-              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
-
-            **SPT.Server Download Page**:
-
-            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
-
-            **Docker Supported for SPT.Server** (linux/amd64 only):
-
-            ```bash
-            docker pull stblog/spt-server:nightly
-            docker pull ghcr.io/airryco/spt-server:nightly
-            ```
-
-            Download Page: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
-
-            > [!WARNING]
-            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
-
-            Full Changelog:
-              - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
-              - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
-
