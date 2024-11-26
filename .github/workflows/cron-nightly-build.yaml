@@ -77,7 +77,7 @@ jobs:
           SERVER_COMMIT_WINDOWS=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}_windows | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/raw/branch/${{ env.NIGHTLY_BRANCH_SERVER }}/project/assets/configs/core.json
+          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_SERVER }}/refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}/project/assets/configs/core.json
           SPT_VERSION=$(jq -r '.sptVersion' core.json)
           EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 

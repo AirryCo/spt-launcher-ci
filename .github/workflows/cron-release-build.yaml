@@ -77,7 +77,7 @@ jobs:
           SERVER_COMMIT=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}/raw/tag/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
+          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_SERVER }}/refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
           SPT_VERSION=$(jq -r '.sptVersion' core.json)
           EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 
