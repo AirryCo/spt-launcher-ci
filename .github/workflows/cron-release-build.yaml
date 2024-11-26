@@ -327,8 +327,9 @@ jobs:
             **Docker Supported for SPT.Server** (linux/amd64 only):
 
             ```bash
-            docker pull stblog/spt-server:nightly
-            docker pull ghcr.io/airryco/spt-server:nightly
+            docker pull stblog/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull ghcr.io/airryco/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
             ```
 
             > [!WARNING]
@@ -365,11 +366,12 @@ jobs:
 
             ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
 
-            **Docker Supported for SPT.Server** (linux/amd64 only):
+            **Docker Supported for SPT.Server** (linux/amd64 and linux/arm64):
 
             ```bash
-            docker pull stblog/spt-server:nightly
-            docker pull ghcr.io/airryco/spt-server:nightly
+            docker pull stblog/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull ghcr.io/airryco/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
             ```
 
             > [!WARNING]

@@ -342,6 +342,15 @@ jobs:
             ```bash
             docker pull stblog/spt-server:nightly
             docker pull ghcr.io/airryco/spt-server:nightly
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:nightly
+            ```
+
+            Fika-Server built-in:
+
+            ```bash
+            docker pull stblog/spt-server:nightly-fika
+            docker pull ghcr.io/airryco/spt-server:nightly-fika
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:nightly-fika
             ```
 
             Full Changelog:
