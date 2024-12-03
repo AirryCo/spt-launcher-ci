@@ -8,9 +8,7 @@ on:
       - '.github/workflows/cron-nightly-build.yaml'
 
 env:
-  NIGHTLY_BRANCH_MODULES: 310-dev
-  NIGHTLY_BRANCH_LAUNCHER: 3.10.0-DEV
-  NIGHTLY_BRANCH_SERVER: 3.10.0-DEV
+  NIGHTLY_BRANCH_SERVER: 3.10.x-DEV
 
   SERVER_URL: https://github.com
   REPOSITORY_OWNER: sp-tarkov
@@ -23,7 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       PROCEED: ${{ steps.get-latest-commit.outputs.PROCEED }}
+      NIGHTLY_BRANCH_MODULES: ${{ steps.get-latest-commit.outputs.NIGHTLY_BRANCH_MODULES }}
       MODULES_LAST_BUILT_HASH: ${{ steps.get-latest-commit.outputs.MODULES_LAST_BUILT_HASH }}
+      NIGHTLY_BRANCH_LAUNCHER: ${{ steps.get-latest-commit.outputs.NIGHTLY_BRANCH_LAUNCHER }}
       LAUNCHER_LAST_BUILT_HASH: ${{ steps.get-latest-commit.outputs.LAUNCHER_LAST_BUILT_HASH }}
       
       SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
@@ -41,19 +41,27 @@ jobs:
         run: |
           git pull
           source trigger.nightly
+          branch_name=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git | grep -o 'refs/heads/3\.10\.[0-9]\+-dev' | sed 's|refs/heads/||' | head -n 1)
 
-          MODULES_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git refs/heads/${{ env.NIGHTLY_BRANCH_MODULES }} | awk '{print $1}')
+          MODULES_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git refs/heads/$branch_name | awk '{print $1}')
           modules_last_commit=${modules:0:7}
           modules_latest_commit=${MODULES_LATEST_COMMIT_HASH:0:7}
+
+          echo "👽 NIGHTLY_BRANCH_MODULES = $branch_name"
+          echo "NIGHTLY_BRANCH_MODULES=$branch_name" >> $GITHUB_OUTPUT
           echo "🤖 modules_last_commit = $modules_last_commit"
           echo "👽 MODULES_LATEST_COMMIT_HASH = $MODULES_LATEST_COMMIT_HASH"
           echo "MODULES_LAST_BUILT_HASH=$modules" >> $GITHUB_OUTPUT
           echo "LAUNCHER_LAST_BUILT_HASH=$launcher" >> $GITHUB_OUTPUT
 
           if [ "$modules_last_commit" = "$modules_latest_commit" ]; then
-            LAUNCHER_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_LAUNCHER }} | awk '{print $1}')
+            branch_name=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git | grep -o 'refs/heads/3\.10\.[0-9]\+-dev' | sed 's|refs/heads/||' | head -n 1)
+            LAUNCHER_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git refs/heads/$branch_name | awk '{print $1}')
             launcher_last_commit=${launcher:0:7}
             launcher_latest_commit="${LAUNCHER_LATEST_COMMIT_HASH:0:7}"
+
+            echo "👽 NIGHTLY_BRANCH_LAUNCHER = $branch_name"
+            echo "NIGHTLY_BRANCH_LAUNCHER=$branch_name" >> $GITHUB_OUTPUT
             echo "🤖 launcher_last_commit = $launcher_last_commit"
             echo "👽 LAUNCHER_LATEST_COMMIT_HASH = $LAUNCHER_LATEST_COMMIT_HASH"
 
@@ -114,7 +122,7 @@ jobs:
         id: clone-modules
         run: |
           git pull
-          git clone --depth=1 -b ${{ env.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
@@ -183,7 +191,7 @@ jobs:
         id: clone-launcher
         run: |
           git pull
-          git clone --depth=1 -b ${{ env.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+          git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
           cd ${{ env.REPOSITORY_LAUNCHER }}
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
