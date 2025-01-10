@@ -1,0 +1,339 @@
+name: SPT.Launcher Release Build Manual
+
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  SERVER_URL: https://github.com
+  REPOSITORY_OWNER: sp-tarkov
+  REPOSITORY_MODULES: modules
+  REPOSITORY_LAUNCHER: launcher
+  REPOSITORY_SERVER: AirryCo/spt-server
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      PROCEED: ${{ steps.get-target-tag.outputs.PROCEED }}
+
+      TARGET_TAG: ${{ steps.get-target-tag.outputs.TARGET_TAG }}
+      TRIGGER_VERSION: ${{ steps.get-target-tag.outputs.TRIGGER_VERSION }}
+      SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
+      EFT_VERSION: ${{ steps.versions.outputs.EFT_VERSION }}
+      SERVER_COMMIT: ${{ steps.versions.outputs.SERVER_COMMIT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get target tag
+        id: get-target-tag
+        run: |
+          git pull
+
+          TRIGGER_VERSION=$(cat trigger.release)
+          echo "👽 TRIGGER_VERSION = $TRIGGER_VERSION"
+          echo "TRIGGER_VERSION=$TRIGGER_VERSION" >> $GITHUB_OUTPUT
+
+          GIT_LFS_SKIP_SMUDGE=1 git clone -b ${{ github.ref_name }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          cd ${{ env.REPOSITORY_MODULES }}
+          TARGET_TAG=${{ github.ref_name }}
+          echo "👽 TARGET_TAG_MODULES = $TARGET_TAG"
+
+          TRIGGER_HASH=$(git rev-parse --short $TRIGGER_VERSION)
+          TARGET_HASH=$(git rev-parse --short $TARGET_TAG)
+
+          echo "TARGET_TAG=$TARGET_TAG" >> $GITHUB_OUTPUT
+          echo "PROCEED=true" >> $GITHUB_OUTPUT
+      - name: Extract versions
+        id: versions
+        if: steps.get-target-tag.outputs.PROCEED == 'true'
+        run: |
+          SERVER_COMMIT=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
+
+          # Extract versions from core.json
+          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_SERVER }}/refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
+          SPT_VERSION=$(jq -r '.sptVersion' core.json)
+          EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
+
+          echo "👽 SPT_VERSION = $SPT_VERSION"
+          echo "👽 EFT_VERSION = $EFT_VERSION"
+          echo "👽 SERVER_COMMIT = $SERVER_COMMIT"
+          echo "SPT_VERSION=$SPT_VERSION" >> $GITHUB_OUTPUT
+          echo "EFT_VERSION=$EFT_VERSION" >> $GITHUB_OUTPUT
+          echo "SERVER_COMMIT=$SERVER_COMMIT" >> $GITHUB_OUTPUT
+
+  build-modules:
+    needs: prepare
+    if: needs.prepare.outputs.PROCEED == 'true'
+    runs-on: N5105
+    container:
+      image: dev.sp-tarkov.com/medusa/spt-build:dotnet
+      volumes:
+        - act-toolcache:/opt/hostedtoolcache
+        - escapefromtarkov:/escapefromtarkov
+    outputs:
+      JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+      MODULES_COMMIT_HASH: ${{ steps.clone-modules.outputs.COMMIT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Clone Modules
+        id: clone-modules
+        run: |
+          git pull
+          git clone --depth=1 -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
+          cd ${{ env.REPOSITORY_MODULES }}
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "👽 COMMIT_ID = $COMMIT_ID"
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Decompress Client Module Package
+        run: |
+          workspace=$(pwd)
+          if [ ! -d /escapefromtarkov ]; then
+            mkdir -p /escapefromtarkov
+          fi
+          cd /escapefromtarkov
+          if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
+            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar
+          fi
+          tar -xf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C $workspace/${{ env.REPOSITORY_MODULES }}/project/Shared/
+      - name: Cache Modules Build
+        uses: actions/cache@v4
+        id: cache-modules-build
+        with:
+          path: |
+            ${{ env.REPOSITORY_MODULES }}/project/Build
+          key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
+      - name: Build Modules
+        if: steps.cache-modules-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.REPOSITORY_MODULES }}/project
+          dotnet restore
+          dotnet build -c Release -p:Version=${{ needs.prepare.outputs.SPT_VERSION }}
+          printf "\n👽 Built!\n\n"
+          tree Build
+
+      - name: Artifact Modules
+        uses: actions/upload-artifact@v3
+        with:
+          name: modules-artifact
+          path: ${{ env.REPOSITORY_MODULES }}/project/Build
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
+
+      - name: Generate status
+        id: status
+        run: |
+          echo "JOB_STATUS = ok"
+          echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
+
+  build-launcher:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
+    runs-on: N5105
+    container:
+      image: dev.sp-tarkov.com/medusa/spt-build:dotnet
+    outputs:
+      JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
+      LAUNCHER_COMMIT_HASH: ${{ steps.clone-launcher.outputs.COMMIT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+      - name: Clone Launcher
+        id: clone-launcher
+        run: |
+          git pull
+          git clone --depth=1 -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
+          cd ${{ env.REPOSITORY_LAUNCHER }}
+          COMMIT_ID=$(git rev-parse --short HEAD)
+          echo "👽 COMMIT_ID = $COMMIT_ID"
+          echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Cache Launcher Build
+        uses: actions/cache@v4
+        id: cache-launcher-build
+        with:
+          path: |
+            ${{ env.REPOSITORY_LAUNCHER }}/project/Build
+          key: launcher-build-${{ steps.clone-launcher.outputs.COMMIT_ID }}
+      - name: Build Launcher
+        if: steps.cache-launcher-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.REPOSITORY_LAUNCHER }}/project
+          dotnet build
+          printf "\n👽 Built!\n\n"
+          tree Build
+
+      - name: Artifact Launcher
+        uses: actions/upload-artifact@v3
+        with:
+          name: launcher-artifact
+          path: ${{ env.REPOSITORY_LAUNCHER }}/project/Build
+          compression-level: 0
+          retention-days: 1
+          overwrite: true
+
+      - name: Generate status
+        id: status
+        run: |
+          echo "JOB_STATUS = ok"
+          echo "JOB_STATUS=ok" >> $GITHUB_OUTPUT
+
+  assemble-and-publish:
+    needs: [prepare, build-modules, build-launcher]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Build Project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Clean Directory
+        run: |
+          rm -rf release build
+          mkdir -p release
+        shell: bash
+
+      - name: Download Modules Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: modules-artifact
+          path: release/
+
+      - name: Download Launcher Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: launcher-artifact
+          path: release/
+
+      - name: Merge Static Assets and Dynamic Files
+        run: cp -rvf static-assets/* release/
+        shell: bash
+
+      - name: List Release Contents
+        run: |
+          apt-get update && apt-get install -y -qq tree
+          tree release
+        shell: bash
+
+      - name: Generate Release Filename
+        id: generate-filename
+        run: |
+          SPT_VERSION=${{ needs.prepare.outputs.SPT_VERSION }}
+          EFT_VERSION=${{ needs.prepare.outputs.EFT_VERSION }}
+          SERVER_COMMIT=${{ needs.prepare.outputs.SERVER_COMMIT }}
+          TARGET_TAG=${{ needs.prepare.outputs.TARGET_TAG }}
+          DATE=$(date +%Y%m%d)
+
+          release_name="spt-launcher-${{ needs.prepare.outputs.TARGET_TAG }}-Release-EFT${EFT_VERSION}-${SERVER_COMMIT}-${DATE}"
+          echo "release_name=$release_name" >> $GITHUB_OUTPUT
+          echo "release_file=$release_name.zip" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Compress Release
+        id: compress-release
+        run: |
+          cd release
+          zip -r ../${{ steps.generate-filename.outputs.release_name }}.zip *
+          echo "Release compressed as ${{ steps.generate-filename.outputs.release_file }}."
+          ls -lh
+        shell: bash
+
+      # 测试版-预发型
+      - name: Create Github Pre-release
+        id: create_gh_prerelease
+        if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          prerelease: true
+          body: |
+            ${{ needs.prepare.outputs.TARGET_TAG }} is pre-released! 🐞
+
+            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
+
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            Commit Hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
+
+            **Docker Supported for SPT.Server** (linux/amd64 only):
+
+            ```bash
+            docker pull stblog/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull ghcr.io/airryco/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            ```
+
+            > [!WARNING]
+            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
+
+            Full Changelog:
+            - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+            - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+
+          files: |
+            ${{ steps.generate-filename.outputs.release_file }}
+
+      # 正式版-正式发型
+      - name: Create Github Release
+        id: create_gh_release
+        if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          tag_name: ${{ needs.prepare.outputs.TARGET_TAG }}
+          prerelease: false
+          body: |
+            ${{ needs.prepare.outputs.TARGET_TAG }} is released! 🥳
+
+            SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
+
+            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+
+            Commit Hash:
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+
+            **SPT.Server Download Page**:
+
+            ${{ github.server_url }}/AirryCo/spt-server-ci/releases/tag/${{ needs.prepare.outputs.TARGET_TAG }}
+
+            **Docker Supported for SPT.Server** (linux/amd64 and linux/arm64):
+
+            ```bash
+            docker pull stblog/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull ghcr.io/airryco/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:${{ needs.prepare.outputs.TARGET_TAG }}
+            ```
+
+            > [!WARNING]
+            > After downloading, please use extraction software like WinRAR or [7-Zip](https://www.7-zip.org/) to unzip the files, then copy them to the Tarkov root directory. Do not use Windows File Explorer to directly open and copy the files.
+
+            Full Changelog:
+              - modules: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+              - launcher: [${{ needs.prepare.outputs.TRIGGER_VERSION }}....${{ needs.prepare.outputs.TARGET_TAG }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/compare/${{ needs.prepare.outputs.TRIGGER_VERSION }}...${{ needs.prepare.outputs.TARGET_TAG }})
+          files: |
+            ${{ steps.generate-filename.outputs.release_file }}
