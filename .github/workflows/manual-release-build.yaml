@@ -27,13 +27,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Get target tag
         id: get-target-tag
         run: |
-          git pull
-
           TRIGGER_VERSION=$(cat trigger.release)
           echo "👽 TRIGGER_VERSION = $TRIGGER_VERSION"
           echo "TRIGGER_VERSION=$TRIGGER_VERSION" >> $GITHUB_OUTPUT
@@ -82,8 +78,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Setup Dotnet
         uses: actions/setup-dotnet@v4
         with:
@@ -91,7 +85,6 @@ jobs:
       - name: Clone Modules
         id: clone-modules
         run: |
-          git pull
           git clone --depth=1 -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
           cd ${{ env.REPOSITORY_MODULES }}
           COMMIT_ID=$(git rev-parse --short HEAD)
@@ -159,7 +152,6 @@ jobs:
       - name: Clone Launcher
         id: clone-launcher
         run: |
-          git pull
           git clone --depth=1 -b ${{ needs.prepare.outputs.TARGET_TAG }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
           cd ${{ env.REPOSITORY_LAUNCHER }}
           COMMIT_ID=$(git rev-parse --short HEAD)
