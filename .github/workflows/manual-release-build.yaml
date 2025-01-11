@@ -264,8 +264,8 @@ jobs:
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             Commit Hash:
-              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
-              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/tree/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/tree/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
 
             **SPT.Server Download Page**:
 
@@ -306,8 +306,8 @@ jobs:
             Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
 
             Commit Hash:
-              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/src/commit/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
-              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/src/commit/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
+              - modules: [${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}/tree/${{ needs.build-modules.outputs.MODULES_COMMIT_HASH }})
+              - launcher: [${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }}](${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}/tree/${{ needs.build-launcher.outputs.LAUNCHER_COMMIT_HASH }})
 
             **SPT.Server Download Page**:
 
