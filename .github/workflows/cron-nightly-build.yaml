@@ -8,7 +8,7 @@ on:
       - '.github/workflows/cron-nightly-build.yaml'
 
 env:
-  NIGHTLY_BRANCH_SERVER: 3.10.x-DEV
+  NIGHTLY_BRANCH_SERVER: 4.0.x-DEV
 
   SERVER_URL: https://github.com
   REPOSITORY_OWNER: sp-tarkov
