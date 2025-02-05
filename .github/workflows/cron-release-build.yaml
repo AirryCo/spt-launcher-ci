@@ -93,7 +93,7 @@ jobs:
     if: needs.prepare.outputs.PROCEED == 'true'
     runs-on: N5105
     container:
-      image: dev.sp-tarkov.com/medusa/spt-build:dotnet
+      image: git.rui.he.cn:3000/henry/spt-build:dotnet
       volumes:
         - act-toolcache:/opt/hostedtoolcache
         - escapefromtarkov:/escapefromtarkov
@@ -166,7 +166,7 @@ jobs:
     if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
     runs-on: N5105
     container:
-      image: dev.sp-tarkov.com/medusa/spt-build:dotnet
+      image: git.rui.he.cn:3000/henry/spt-build:dotnet
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
       LAUNCHER_COMMIT_HASH: ${{ steps.clone-launcher.outputs.COMMIT_ID }}
