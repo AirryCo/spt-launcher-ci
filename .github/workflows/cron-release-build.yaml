@@ -147,7 +147,7 @@ jobs:
           tree Build
 
       - name: Artifact Modules
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: modules-artifact
           path: ${{ env.REPOSITORY_MODULES }}/project/Build
@@ -203,7 +203,7 @@ jobs:
           tree Build
 
       - name: Artifact Launcher
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: launcher-artifact
           path: ${{ env.REPOSITORY_LAUNCHER }}/project/Build
@@ -256,13 +256,13 @@ jobs:
         shell: bash
 
       - name: Download Modules Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: modules-artifact
           path: release/
 
       - name: Download Launcher Artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: launcher-artifact
           path: release/
