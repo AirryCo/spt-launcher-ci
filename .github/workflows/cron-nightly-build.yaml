@@ -41,7 +41,7 @@ jobs:
         run: |
           git pull
           source trigger.nightly
-          branch_name_modules=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git | grep -o 'refs/heads/4.0.0-DEV' | sed 's|refs/heads/||' | head -n 1)
+          branch_name_modules=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git | grep -o 'refs/heads/3.11.0-dev' | sed 's|refs/heads/||' | head -n 1)
           MODULES_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git refs/heads/$branch_name_modules | awk '{print $1}')
           modules_last_commit=${modules:0:7}
           modules_latest_commit=${MODULES_LATEST_COMMIT_HASH:0:7}
