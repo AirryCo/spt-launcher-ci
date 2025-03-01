@@ -46,7 +46,7 @@ jobs:
           modules_last_commit=${modules:0:7}
           modules_latest_commit=${MODULES_LATEST_COMMIT_HASH:0:7}
 
-          branch_name_launcher=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git | grep -o 'refs/heads/4.0.0-DEV' | sed 's|refs/heads/||' | head -n 1)
+          branch_name_launcher=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git | grep -o 'refs/heads/3.11.0-DEV' | sed 's|refs/heads/||' | head -n 1)
 
           echo "👽 NIGHTLY_BRANCH_MODULES = $branch_name_modules"
           echo "NIGHTLY_BRANCH_MODULES=$branch_name_modules" >> $GITHUB_OUTPUT
