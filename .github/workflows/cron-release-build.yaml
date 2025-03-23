@@ -119,7 +119,15 @@ jobs:
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+      - name: Cache Modules Build
+        uses: actions/cache@v4
+        id: cache-modules-build
+        with:
+          path: |
+            ${{ env.REPOSITORY_MODULES }}/project/Build
+          key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
       - name: Decompress Client Module Package
+        if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
           workspace=$(pwd)
           if [ ! -d /escapefromtarkov ]; then
@@ -130,13 +138,13 @@ jobs:
             wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar
           fi
           tar -xf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C $workspace/${{ env.REPOSITORY_MODULES }}/project/Shared/
-      - name: Cache Modules Build
-        uses: actions/cache@v4
-        id: cache-modules-build
-        with:
-          path: |
-            ${{ env.REPOSITORY_MODULES }}/project/Build
-          key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
+      - name: Replace Version String
+        if: steps.cache-modules-build.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ env.REPOSITORY_MODULES }}/project/SPT.Common
+          spt_version=${{ needs.prepare.outputs.TARGET_TAG }}
+          sed -i -E "s/<Version>[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+<\/Version>/<Version>${spt_version}.0<\/Version>/" SPT.Common.csproj
+        shell: bash
       - name: Build Modules
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
@@ -303,7 +311,7 @@ jobs:
       # 测试版-预发型
       - name: Create Github Pre-release
         id: create_gh_prerelease
-        if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        if: ${{ contains(needs.prepare.outputs.TARGET_TAG, 'BE') }}
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ needs.prepare.outputs.TARGET_TAG }}
@@ -345,7 +353,7 @@ jobs:
       # 正式版-正式发型
       - name: Create Github Release
         id: create_gh_release
-        if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BEM') }}
+        if: ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BE') }}
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ needs.prepare.outputs.TARGET_TAG }}
