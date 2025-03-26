@@ -72,7 +72,7 @@ jobs:
           fi
       - name: Extract versions
         id: versions
-        if: steps.get-target-tag.outputs.PROCEED == 'true'
+        if: ${{ steps.get-target-tag.outputs.PROCEED == 'true' }} && ${{ !contains(steps.get-target-tag.outputs.TARGET_TAG, 'BE') }}
         run: |
           SERVER_COMMIT=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
 
@@ -90,7 +90,7 @@ jobs:
 
   build-modules:
     needs: prepare
-    if: needs.prepare.outputs.PROCEED == 'true'
+    if: ${{ needs.prepare.outputs.PROCEED == 'true' }} && ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BE') }}
     runs-on: N5105
     container:
       image: git.rui.he.cn:3000/henry/spt-build:dotnet
@@ -171,7 +171,7 @@ jobs:
 
   build-launcher:
     needs: prepare
-    if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
+    if: ${{ needs.prepare.outputs.PROCEED == 'true' }} && ${{ !contains(needs.prepare.outputs.TARGET_TAG, 'BE') }}
     runs-on: N5105
     container:
       image: git.rui.he.cn:3000/henry/spt-build:dotnet
