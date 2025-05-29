@@ -8,13 +8,13 @@ on:
       - '.github/workflows/cron-nightly-build.yaml'
 
 env:
-  NIGHTLY_BRANCH_SERVER: 3.11.x-DEV
+  NIGHTLY_BRANCH_SERVER: develop
 
   SERVER_URL: https://github.com
   REPOSITORY_OWNER: sp-tarkov
   REPOSITORY_MODULES: modules
   REPOSITORY_LAUNCHER: launcher
-  REPOSITORY_SERVER: AirryCo/spt-server
+  REPOSITORY_SERVER: server-csharp
 
 jobs:
   prepare:
@@ -26,10 +26,9 @@ jobs:
       NIGHTLY_BRANCH_LAUNCHER: ${{ steps.get-latest-commit.outputs.NIGHTLY_BRANCH_LAUNCHER }}
       LAUNCHER_LAST_BUILT_HASH: ${{ steps.get-latest-commit.outputs.LAUNCHER_LAST_BUILT_HASH }}
       
+      CLIENT_VERSION: ${{ steps.versions.outputs.CLIENT_VERSION }}
       SPT_VERSION: ${{ steps.versions.outputs.SPT_VERSION }}
-      EFT_VERSION: ${{ steps.versions.outputs.EFT_VERSION }}
-      SERVER_COMMIT_LINUX: ${{ steps.versions.outputs.SERVER_COMMIT_LINUX }}
-      SERVER_COMMIT_WINDOWS: ${{ steps.versions.outputs.SERVER_COMMIT_WINDOWS }}
+      SERVER_COMMIT: ${{ steps.versions.outputs.SERVER_COMMIT }}
 
     steps:
       - name: Checkout
@@ -41,12 +40,12 @@ jobs:
         run: |
           git pull
           source trigger.nightly
-          branch_name_modules=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git | grep -o 'refs/heads/3.11.x-dev' | sed 's|refs/heads/||' | head -n 1)
+          branch_name_modules=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git | grep -o 'refs/heads/4.0.x-dev' | sed 's|refs/heads/||' | head -n 1)
           MODULES_LATEST_COMMIT_HASH=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git refs/heads/$branch_name_modules | awk '{print $1}')
           modules_last_commit=${modules:0:7}
           modules_latest_commit=${MODULES_LATEST_COMMIT_HASH:0:7}
 
-          branch_name_launcher=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git | grep -o 'refs/heads/3.11.x-dev' | sed 's|refs/heads/||' | head -n 1)
+          branch_name_launcher=$(git ls-remote --heads ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git | grep -o 'refs/heads/4.0.0-DEV' | sed 's|refs/heads/||' | head -n 1)
 
           echo "👽 NIGHTLY_BRANCH_MODULES = $branch_name_modules"
           echo "NIGHTLY_BRANCH_MODULES=$branch_name_modules" >> $GITHUB_OUTPUT
@@ -81,29 +80,27 @@ jobs:
         id: versions
         if: steps.get-latest-commit.outputs.PROCEED == 'true'
         run: |
-          SERVER_COMMIT_LINUX=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }} | awk '{print $1}' | cut -c1-8)
-          SERVER_COMMIT_WINDOWS=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}_windows | awk '{print $1}' | cut -c1-8)
+          SERVER_COMMIT=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }} | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_SERVER }}/refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}/project/assets/configs/core.json
+          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_SERVER }}/refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}/Libraries/SPTarkov.Server.Assets/Assets/configs/core.json
           SPT_VERSION=$(jq -r '.sptVersion' core.json)
-          EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
+          CLIENT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 
+          echo "👽 CLIENT_VERSION = $CLIENT_VERSION"
           echo "👽 SPT_VERSION = $SPT_VERSION"
-          echo "👽 EFT_VERSION = $EFT_VERSION"
-          echo "👽 SERVER_COMMIT_LINUX = $SERVER_COMMIT_LINUX"
-          echo "👽 SERVER_COMMIT_WINDOWS = $SERVER_COMMIT_WINDOWS"
+          echo "👽 SERVER_COMMIT = $SERVER_COMMIT"
+
+          echo "CLIENT_VERSION=$CLIENT_VERSION" >> $GITHUB_OUTPUT
           echo "SPT_VERSION=$SPT_VERSION" >> $GITHUB_OUTPUT
-          echo "EFT_VERSION=$EFT_VERSION" >> $GITHUB_OUTPUT
-          echo "SERVER_COMMIT_LINUX=$SERVER_COMMIT_LINUX" >> $GITHUB_OUTPUT
-          echo "SERVER_COMMIT_WINDOWS=$SERVER_COMMIT_WINDOWS" >> $GITHUB_OUTPUT
+          echo "SERVER_COMMIT=$SERVER_COMMIT" >> $GITHUB_OUTPUT
 
   build-modules:
     needs: prepare
     if: needs.prepare.outputs.PROCEED == 'true'
     runs-on: N5105
     container:
-      image: git.rui.he.cn:3000/henry/spt-build:dotnet
+      image: git.rui.he.cn:3000/henry/spt-build:dotnet-2.0
       volumes:
         - act-toolcache:/opt/hostedtoolcache
         - escapefromtarkov:/escapefromtarkov
@@ -114,10 +111,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.x
       - name: Clone Modules
         id: clone-modules
         run: |
@@ -142,10 +135,10 @@ jobs:
             mkdir -p /escapefromtarkov
           fi
           cd /escapefromtarkov
-          if [ ! -f Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar ]; then
-            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar
+          if [ ! -f Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar ]; then
+            wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar
           fi
-          tar -xf Managed-${{ needs.prepare.outputs.EFT_VERSION }}.tar -C $workspace/${{ env.REPOSITORY_MODULES }}/project/Shared/
+          tar -xf Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar -C $workspace/${{ env.REPOSITORY_MODULES }}/project/Shared/
       - name: Replace Version String
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
@@ -158,7 +151,7 @@ jobs:
         run: |
           cd ${{ env.REPOSITORY_MODULES }}/project
           dotnet restore
-          dotnet build
+          dotnet build -c Release -p:Version=${{ needs.prepare.outputs.SPT_VERSION }}
           printf "\n👽 Built success!\n\n"
           tree Build
 
@@ -180,10 +173,10 @@ jobs:
 
   build-launcher:
     needs: prepare
-    if: ${{ needs.prepare.outputs.PROCEED == 'true' }}
-    runs-on: N5105
+    if: needs.prepare.outputs.PROCEED == 'true'
+    runs-on: ubuntu-latest
     container:
-      image: git.rui.he.cn:3000/henry/spt-build:dotnet
+      image: refringe/spt-build-dotnet:2.0.2
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
       LAUNCHER_LATEST_BUILT_HASH: ${{ steps.status.outputs.LAUNCHER_LATEST_BUILT_HASH }}
@@ -191,10 +184,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.x
       - name: Clone Launcher
         id: clone-launcher
         run: |
@@ -242,8 +231,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Update Trigger And Push To GitHub
         run: |
           git config user.name "github-actions[bot]"
@@ -254,10 +241,12 @@ jobs:
           launcher=${{ needs.build-launcher.outputs.LAUNCHER_LATEST_BUILT_HASH }}
           echo "modules=$modules" > trigger.nightly
           echo "launcher=$launcher" >> trigger.nightly
-          git add trigger.nightly
-          git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
-          git push
-        shell: bash
+          changes=$(git status --porcelain)
+          if [ -n "$changes" ]; then
+            git add trigger.nightly
+            git commit -m "🤖 up to modules: \`$modules\`, launcher: \`$launcher\`."
+            git push
+          fi
 
   assemble-and-publish:
     needs: [prepare, build-modules, build-launcher]
@@ -265,8 +254,6 @@ jobs:
     steps:
       - name: Clone Build Project
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Clean Directory
         run: |
@@ -290,21 +277,15 @@ jobs:
         run: cp -rvf static-assets/* release/
         shell: bash
 
-      - name: List Release Contents
-        run: |
-          apt-get update && apt-get install -y -qq tree
-          tree release
-        shell: bash
-
       - name: Generate Release Filename
         id: generate-filename
         run: |
           SPT_VERSION=${{ needs.prepare.outputs.SPT_VERSION }}
-          EFT_VERSION=${{ needs.prepare.outputs.EFT_VERSION }}
-          SERVER_COMMIT_LINUX=${{ needs.prepare.outputs.SERVER_COMMIT_LINUX }}
-          DATE_TIME=$(date +%Y%m%d%H%M%S)
+          CLIENT_VERSION=${{ needs.prepare.outputs.CLIENT_VERSION }}
+          SERVER_COMMIT=${{ needs.prepare.outputs.SERVER_COMMIT }}
+          DATE_TIME=$(date +%Y%m%d)
 
-          release_name="spt-launcher-${SPT_VERSION}-Nightly-EFT${EFT_VERSION}-${SERVER_COMMIT_LINUX}-${DATE_TIME}"
+          release_name="spt-launcher-${SPT_VERSION}-Nightly-EFT${CLIENT_VERSION}-${SERVER_COMMIT}-${DATE_TIME}"
           echo "DATE_TIME=$DATE_TIME" >> $GITHUB_OUTPUT
           echo "release_name=$release_name" >> $GITHUB_OUTPUT
           echo "release_file=$release_name.zip" >> $GITHUB_OUTPUT
@@ -338,7 +319,7 @@ jobs:
 
             SPT: ***${{ needs.prepare.outputs.SPT_VERSION }}***
 
-            Tarkov: ***${{ needs.prepare.outputs.EFT_VERSION }}***
+            Tarkov: ***${{ needs.prepare.outputs.CLIENT_VERSION }}***
 
             Build time: ***${{ steps.generate-filename.outputs.DATE_TIME }}***
 
@@ -353,20 +334,21 @@ jobs:
 
             ${{ github.server_url }}/AirryCo/spt-server-ci/releases
 
-            **Docker Supported for SPT.Server** (linux/amd64 only):
+            **Docker Supported for SPT.Server** :
+
+            linux/amd64:
 
             ```bash
             docker pull stblog/spt-server:nightly
             docker pull ghcr.io/airryco/spt-server:nightly
             docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:nightly
             ```
-
-            Fika-Server built-in:
+            linux/arm64:
 
             ```bash
-            docker pull stblog/spt-server:nightly-fika
-            docker pull ghcr.io/airryco/spt-server:nightly-fika
-            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:nightly-fika
+            docker pull stblog/spt-server:nightly-arm64
+            docker pull ghcr.io/airryco/spt-server:nightly-arm64
+            docker pull registry.cn-shenzhen.aliyuncs.com/spt-server/spt-server:nightly-arm64
             ```
 
             Full Changelog:
