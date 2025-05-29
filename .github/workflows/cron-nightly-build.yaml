@@ -115,8 +115,8 @@ jobs:
         id: clone-modules
         run: |
           git pull
-          git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git
-          cd ${{ env.REPOSITORY_MODULES }}
+          git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git /modules
+          cd /modules
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
@@ -125,7 +125,7 @@ jobs:
         id: cache-modules-build
         with:
           path: |
-            ${{ env.REPOSITORY_MODULES }}/project/Build
+            /modules/project/Build
           key: modules-build-${{ steps.clone-modules.outputs.COMMIT_ID }}
       - name: Decompress Client Module Package
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
@@ -138,18 +138,18 @@ jobs:
           if [ ! -f Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar ]; then
             wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar
           fi
-          tar -xf Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar -C $workspace/${{ env.REPOSITORY_MODULES }}/project/Shared/
+          tar -xf Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar -C /modules/project/Shared/
       - name: Replace Version String
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
-          cd ${{ env.REPOSITORY_MODULES }}/project/SPT.Common
+          cd /modules/project/SPT.Common
           spt_version=${{ needs.prepare.outputs.SPT_VERSION }}
           sed -i -E "s/<Version>[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+<\/Version>/<Version>${spt_version}.0<\/Version>/" SPT.Common.csproj
         shell: bash
       - name: Build Modules
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
-          cd ${{ env.REPOSITORY_MODULES }}/project
+          cd /modules/project
           dotnet restore
           dotnet build -c Release -p:Version=${{ needs.prepare.outputs.SPT_VERSION }}
           printf "\n👽 Built success!\n\n"
@@ -159,7 +159,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: modules-artifact
-          path: ${{ env.REPOSITORY_MODULES }}/project/Build
+          path: /modules/project/Build
           compression-level: 0
           retention-days: 1
           overwrite: true
@@ -188,8 +188,8 @@ jobs:
         id: clone-launcher
         run: |
           git pull
-          git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git
-          cd ${{ env.REPOSITORY_LAUNCHER }}
+          git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git /launcher
+          cd /launcher
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
@@ -198,12 +198,12 @@ jobs:
         id: cache-launcher-build
         with:
           path: |
-            ${{ env.REPOSITORY_LAUNCHER }}/project/Build
+            /launcher/project/Build
           key: launcher-build-${{ steps.clone-launcher.outputs.COMMIT_ID }}
       - name: Build Launcher
         if: steps.cache-launcher-build.outputs.cache-hit != 'true'
         run: |
-          cd ${{ env.REPOSITORY_LAUNCHER }}/project
+          cd /launcher/project
           dotnet build
           printf "\n👽 Built!\n\n"
           tree Build
@@ -212,7 +212,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: launcher-artifact
-          path: ${{ env.REPOSITORY_LAUNCHER }}/project/Build
+          path: /launcher/project/Build
           compression-level: 0
           retention-days: 1
           overwrite: true
