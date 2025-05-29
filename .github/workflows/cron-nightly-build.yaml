@@ -120,6 +120,7 @@ jobs:
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+        shell: bash
       - name: Cache Modules Build
         uses: actions/cache@v4
         id: cache-modules-build
@@ -130,15 +131,16 @@ jobs:
       - name: Decompress Client Module Package
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
-          workspace=$(pwd)
           if [ ! -d /escapefromtarkov ]; then
             mkdir -p /escapefromtarkov
           fi
           cd /escapefromtarkov
           if [ ! -f Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar ]; then
+            echo "Download Managed.tar"
             wget -q ${{ secrets.MANAGED_DOWNLOAD_URL }}/Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar
           fi
           tar -xf Managed-${{ needs.prepare.outputs.CLIENT_VERSION }}.tar -C /modules/project/Shared/
+        shell: bash
       - name: Replace Version String
         if: steps.cache-modules-build.outputs.cache-hit != 'true'
         run: |
@@ -193,6 +195,7 @@ jobs:
           COMMIT_ID=$(git rev-parse --short HEAD)
           echo "👽 COMMIT_ID = $COMMIT_ID"
           echo "COMMIT_ID=$COMMIT_ID" >> $GITHUB_OUTPUT
+        shell: bash
       - name: Cache Launcher Build
         uses: actions/cache@v4
         id: cache-launcher-build
