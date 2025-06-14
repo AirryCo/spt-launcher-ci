@@ -178,7 +178,7 @@ jobs:
   build-launcher:
     needs: prepare
     if: needs.prepare.outputs.PROCEED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: N5105
     container:
       image: git.rui.he.cn:3000/henry/spt-build:dotnet-2.0
     outputs:
