@@ -114,6 +114,8 @@ jobs:
       - name: Clone Modules
         id: clone-modules
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "bot@stblog.com.cn"
           git pull
           git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_MODULES }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_MODULES }}.git /modules
           cd /modules
@@ -178,7 +180,7 @@ jobs:
     if: needs.prepare.outputs.PROCEED == 'true'
     runs-on: ubuntu-latest
     container:
-      image: refringe/spt-build-dotnet:2.0.2
+      image: git.rui.he.cn:3000/henry/spt-build:dotnet-2.0
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
       LAUNCHER_LATEST_BUILT_HASH: ${{ steps.status.outputs.LAUNCHER_LATEST_BUILT_HASH }}
@@ -189,6 +191,8 @@ jobs:
       - name: Clone Launcher
         id: clone-launcher
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "bot@stblog.com.cn"
           git pull
           git clone --depth=1 -b ${{ needs.prepare.outputs.NIGHTLY_BRANCH_LAUNCHER }} ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_LAUNCHER }}.git /launcher
           cd /launcher
