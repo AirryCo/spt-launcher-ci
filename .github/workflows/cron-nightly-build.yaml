@@ -83,8 +83,8 @@ jobs:
           SERVER_COMMIT=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_SERVER }}.git refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }} | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_SERVER }}/refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}/Libraries/SPTarkov.Server.Assets/Assets/configs/core.json
-          SPT_VERSION=$(jq -r '.sptVersion' core.json)
+          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_OWNER }}/${{ env.REPOSITORY_SERVER }}/refs/heads/${{ env.NIGHTLY_BRANCH_SERVER }}/Libraries/SPTarkov.Server.Assets/SPT_Data/configs/core.json
+          SPT_VERSION=4.0.0
           CLIENT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 
           echo "👽 CLIENT_VERSION = $CLIENT_VERSION"
