@@ -77,8 +77,8 @@ jobs:
           SERVER_COMMIT=$(git ls-remote ${{ env.SERVER_URL }}/${{ env.REPOSITORY_SERVER }}.git refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }} | awk '{print $1}' | cut -c1-8)
 
           # Extract versions from core.json
-          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_SERVER }}/refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }}/project/assets/configs/core.json
-          SPT_VERSION=$(jq -r '.sptVersion' core.json)
+          wget https://raw.githubusercontent.com//${{ env.REPOSITORY_SERVER }}/refs/tags/${{ steps.get-target-tag.outputs.TARGET_TAG }}/Libraries/SPTarkov.Server.Assets/SPT_Data/configs/core.json
+          SPT_VERSION=${{ steps.get-target-tag.outputs.TARGET_TAG }}
           EFT_VERSION=$(jq -r '.compatibleTarkovVersion' core.json)
 
           echo "👽 SPT_VERSION = $SPT_VERSION"
@@ -93,7 +93,7 @@ jobs:
     if: needs.prepare.outputs.PROCEED == 'true' && !contains(needs.prepare.outputs.TARGET_TAG, 'BE')
     runs-on: N5105
     container:
-      image: git.rui.he.cn:3000/henry/spt-build:dotnet
+      image: git.rui.he.cn:3000/henry/spt-build:dotnet-2.0
       volumes:
         - act-toolcache:/opt/hostedtoolcache
         - escapefromtarkov:/escapefromtarkov
@@ -104,12 +104,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.x
       - name: Clone Modules
         id: clone-modules
         run: |
@@ -174,7 +168,7 @@ jobs:
     if: needs.prepare.outputs.PROCEED == 'true' && !contains(needs.prepare.outputs.TARGET_TAG, 'BE')
     runs-on: N5105
     container:
-      image: git.rui.he.cn:3000/henry/spt-build:dotnet
+      image: git.rui.he.cn:3000/henry/spt-build:dotnet-2.0
     outputs:
       JOB_STATUS: ${{ steps.status.outputs.JOB_STATUS }}
       LAUNCHER_COMMIT_HASH: ${{ steps.clone-launcher.outputs.COMMIT_ID }}
@@ -182,10 +176,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.x
       - name: Clone Launcher
         id: clone-launcher
         run: |
@@ -254,8 +244,6 @@ jobs:
     steps:
       - name: Clone Build Project
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Clean Directory
         run: |
@@ -277,12 +265,6 @@ jobs:
 
       - name: Merge Static Assets and Dynamic Files
         run: cp -rvf static-assets/* release/
-        shell: bash
-
-      - name: List Release Contents
-        run: |
-          apt-get update && apt-get install -y -qq tree
-          tree release
         shell: bash
 
       - name: Generate Release Filename
