@@ -261,10 +261,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: launcher-artifact
-          path: release/
+          path: release/SPT/
 
       - name: Merge Static Assets and Dynamic Files
-        run: cp -rvf static-assets/* release/
+        run: cp -rvf static-assets-csharp/* release/
         shell: bash
 
       - name: Generate Release Filename
