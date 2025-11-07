@@ -12,7 +12,7 @@ env:
   REPOSITORY_OWNER: sp-tarkov
   REPOSITORY_MODULES: modules
   REPOSITORY_LAUNCHER: launcher
-  REPOSITORY_SERVER: AirryCo/spt-server
+  REPOSITORY_SERVER: sp-tarkov/server-csharp
 
 jobs:
   prepare:
